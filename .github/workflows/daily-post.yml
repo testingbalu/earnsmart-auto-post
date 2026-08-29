@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 permissions:
@@ -21,354 +20,464 @@ jobs:
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
 
         run: |
-          cat > /tmp/earnsmart_daily.py <<'PYTHON_SCRIPT'
+          cat > /tmp/telegram_test.py <<'PYTHON_SCRIPT'
           import os
           import sys
-          import html
           import json
-          import time
           import urllib.request
           import urllib.error
-          import urllib.parse
           import uuid
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-
-          # ============================================================
-          # CONFIGURATION
-          # ============================================================
+          import time
 
           TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
           CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
+          print("========================================")
+          print("EarnSmart India Telegram Diagnostics")
+          print("========================================")
+          print()
+
           if not TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
+              print("❌ TELEGRAM_BOT_TOKEN is EMPTY")
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: TELEGRAM_CHAT_ID is missing.")
+              print("❌ TELEGRAM_CHAT_ID is EMPTY")
+              sys.exit(1)
+
+          print("Bot token found: YES")
+          print("Bot token length:", len(TOKEN))
+          print("Target chat:", CHAT_ID)
+          print()
+
+          # ============================================================
+          # TELEGRAM API HELPER
+          # ============================================================
+
+          def telegram_api(method, data=None):
+              url = f"https://api.telegram.org/bot{TOKEN}/{method}"
+
+              if data:
+                  encoded = json.dumps(data).encode("utf-8")
+
+                  request = urllib.request.Request(
+                      url,
+                      data=encoded,
+                      method="POST",
+                      headers={
+                          "Content-Type": "application/json",
+                          "User-Agent": "EarnSmartIndia/1.0"
+                      }
+                  )
+              else:
+                  request = urllib.request.Request(
+                      url,
+                      method="GET",
+                      headers={
+                          "User-Agent": "EarnSmartIndia/1.0"
+                      }
+                  )
+
+              try:
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=60
+                  ) as response:
+
+                      raw = response.read().decode(
+                          "utf-8",
+                          errors="replace"
+                      )
+
+                      result = json.loads(raw)
+
+                      print("HTTP:", response.status)
+                      print(
+                          json.dumps(
+                              result,
+                              indent=2,
+                              ensure_ascii=False
+                          )
+                      )
+
+                      return result
+
+              except urllib.error.HTTPError as e:
+
+                  body = e.read().decode(
+                      "utf-8",
+                      errors="replace"
+                  )
+
+                  print("❌ HTTP ERROR:", e.code)
+                  print("Response:", body)
+
+                  try:
+                      return json.loads(body)
+                  except Exception:
+                      return {
+                          "ok": False,
+                          "description": body
+                      }
+
+              except Exception as e:
+
+                  print("❌ REQUEST ERROR:", repr(e))
+
+                  return {
+                      "ok": False,
+                      "description": str(e)
+                  }
+
+          # ============================================================
+          # STEP 1 — VERIFY BOT TOKEN
+          # ============================================================
+
+          print()
+          print("========================================")
+          print("STEP 1: Checking bot token")
+          print("========================================")
+
+          bot_result = telegram_api("getMe")
+
+          if not bot_result.get("ok"):
+              print()
+              print("❌ BOT TOKEN IS INVALID")
+              sys.exit(1)
+
+          bot = bot_result.get("result", {})
+
+          print()
+          print("✅ BOT TOKEN WORKS")
+          print("Bot ID:", bot.get("id"))
+          print("Bot username:", bot.get("username"))
+          print("Bot name:", bot.get("first_name"))
+
+          # ============================================================
+          # STEP 2 — VERIFY CHANNEL
+          # ============================================================
+
+          print()
+          print("========================================")
+          print("STEP 2: Checking Telegram channel")
+          print("========================================")
+
+          chat_result = telegram_api(
+              "getChat",
+              {
+                  "chat_id": CHAT_ID
+              }
+          )
+
+          if not chat_result.get("ok"):
+              print()
+              print("❌ CANNOT ACCESS TARGET CHAT")
+              print()
+              print("Check that:")
+              print("1. The username is correct.")
+              print("2. The bot is inside the channel.")
+              print("3. The bot is an administrator.")
+              print("4. The channel username is correct.")
+              sys.exit(1)
+
+          chat = chat_result.get("result", {})
+
+          print()
+          print("✅ CHANNEL FOUND")
+          print("Channel ID:", chat.get("id"))
+          print("Channel type:", chat.get("type"))
+          print("Channel title:", chat.get("title"))
+          print("Channel username:", chat.get("username"))
+
+          # ============================================================
+          # STEP 3 — CHECK BOT ADMIN STATUS
+          # ============================================================
+
+          print()
+          print("========================================")
+          print("STEP 3: Checking bot administrator status")
+          print("========================================")
+
+          bot_id = bot.get("id")
+
+          admin_result = telegram_api(
+              "getChatMember",
+              {
+                  "chat_id": CHAT_ID,
+                  "user_id": bot_id
+              }
+          )
+
+          if not admin_result.get("ok"):
+              print()
+              print("❌ COULD NOT CHECK BOT ADMIN STATUS")
+              sys.exit(1)
+
+          member = admin_result.get("result", {})
+
+          status = member.get("status")
+
+          print()
+          print("Bot status:", status)
+
+          if status != "administrator":
+              print()
+              print("❌ BOT IS NOT AN ADMINISTRATOR")
+              print()
+              print("Add the bot as an administrator")
+              print("inside your Telegram channel.")
+              sys.exit(1)
+
+          print("✅ BOT IS ADMINISTRATOR")
+
+          # ============================================================
+          # STEP 4 — TEST TEXT MESSAGE
+          # ============================================================
+
+          print()
+          print("========================================")
+          print("STEP 4: Sending test Telegram message")
+          print("========================================")
+
+          test_message = (
+              "🧪 <b>EarnSmart India Test</b>\n\n"
+              "Telegram connection is working.\n"
+              "This message was sent automatically by GitHub Actions."
+          )
+
+          send_result = telegram_api(
+              "sendMessage",
+              {
+                  "chat_id": CHAT_ID,
+                  "text": test_message,
+                  "parse_mode": "HTML"
+              }
+          )
+
+          if not send_result.get("ok"):
+              print()
+              print("❌ TEST MESSAGE FAILED")
+              print(
+                  "Telegram:",
+                  send_result.get("description")
+              )
+              sys.exit(1)
+
+          message = send_result.get("result", {})
+
+          print()
+          print("✅ TEST MESSAGE SENT")
+          print(
+              "Message ID:",
+              message.get("message_id")
+          )
+
+          # ============================================================
+          # STEP 5 — CREATE TEST IMAGE
+          # ============================================================
+
+          print()
+          print("========================================")
+          print("STEP 5: Downloading test image")
+          print("========================================")
+
+          image_url = (
+              "https://picsum.photos/seed/"
+              "earnsmart-test/1200/800"
+          )
+
+          image_path = "/tmp/earnsmart_test.jpg"
+
+          request = urllib.request.Request(
+              image_url,
+              headers={
+                  "User-Agent":
+                  "Mozilla/5.0 EarnSmartIndia/1.0"
+              }
+          )
+
+          try:
+              with urllib.request.urlopen(
+                  request,
+                  timeout=60
+              ) as response:
+
+                  image_data = response.read()
+
+              with open(image_path, "wb") as f:
+                  f.write(image_data)
+
+              print(
+                  "✅ Image downloaded:",
+                  len(image_data),
+                  "bytes"
+              )
+
+          except Exception as e:
+              print("❌ IMAGE DOWNLOAD FAILED")
+              print(repr(e))
               sys.exit(1)
 
           # ============================================================
-          # INDIA DATE
+          # STEP 6 — SEND PHOTO
           # ============================================================
 
-          now = datetime.now(ZoneInfo("Asia/Kolkata"))
-          date_text = now.strftime("%d %B %Y")
-          day_of_year = now.timetuple().tm_yday
+          print()
+          print("========================================")
+          print("STEP 6: Sending photo to Telegram")
+          print("========================================")
 
-          # ============================================================
-          # CONTENT LIBRARY
-          # ============================================================
+          boundary = (
+              "----EarnSmartIndia"
+              + uuid.uuid4().hex
+          )
 
-          POSTS = [
-              {
-                  "title": "💻 Freelancing for Beginners",
-                  "image_keywords": "freelancer,laptop,workspace",
-                  "fallback_seed": "earnsmart-freelance-beginners",
-                  "intro": "Freelancing lets you offer a skill to clients online and get paid per project.",
-                  "who": ["Students", "Job seekers", "Skilled professionals"],
-                  "steps": [
-                      "Pick one skill you already have.",
-                      "Create 2-3 sample projects.",
-                      "List yourself on a genuine freelance platform.",
-                      "Apply to small projects first.",
-                  ],
-                  "tip": "Start with a fair price and raise it as you gain reviews.",
-                  "warning": "Never pay an upfront fee to unlock freelance projects.",
-                  "takeaway": "Freelancing rewards a real skill, not luck.",
-              },
-              {
-                  "title": "🏠 Finding Legitimate Remote Jobs",
-                  "image_keywords": "remote work,home office,laptop",
-                  "fallback_seed": "earnsmart-remote-jobs",
-                  "intro": "Many companies hire remote employees for support, sales and technical roles.",
-                  "who": ["Graduates", "Career changers", "Experienced professionals"],
-                  "steps": [
-                      "Update your resume for remote roles.",
-                      "Search company career pages directly.",
-                      "Use trusted job portals.",
-                      "Prepare for a video interview.",
-                  ],
-                  "tip": "A genuine employer never asks you to pay for a job offer.",
-                  "warning": "Be cautious of instant-hire messages on WhatsApp or Telegram.",
-                  "takeaway": "Real remote jobs are earned through skills and interviews.",
-              },
-              {
-                  "title": "📚 Earning Through Online Tutoring",
-                  "image_keywords": "online tutor,teaching,laptop",
-                  "fallback_seed": "earnsmart-tutoring",
-                  "intro": "If you're strong in a subject or skill, tutoring students online can be a steady income source.",
-                  "who": ["Teachers", "College students", "Subject experts"],
-                  "steps": [
-                      "Choose a subject you know well.",
-                      "Decide between 1-on-1 or group classes.",
-                      "List yourself on a tutoring platform.",
-                      "Prepare a simple lesson plan.",
-                  ],
-                  "tip": "Short trial classes can help build trust with new students.",
-                  "warning": "Verify tutoring platforms before sharing bank details.",
-                  "takeaway": "Good teaching plus consistency builds a reliable student base.",
-              },
-              {
-                  "title": "🌐 Blogging as a Long-Term Asset",
-                  "image_keywords": "blog,writing,laptop",
-                  "fallback_seed": "earnsmart-blogging",
-                  "intro": "A blog on a topic you understand well can grow into a long-term online asset.",
-                  "who": ["Writers", "Hobbyists", "Subject experts"],
-                  "steps": [
-                      "Choose one clear topic.",
-                      "Publish genuinely useful articles.",
-                      "Learn basic SEO.",
-                      "Track visitors and improve content.",
-                  ],
-                  "tip": "Consistency matters more than posting frequency.",
-                  "warning": "Avoid copying content from other websites.",
-                  "takeaway": "Blogging income builds slowly but can last for years.",
-              },
-              {
-                  "title": "🎥 Starting a YouTube Channel",
-                  "image_keywords": "youtube,camera,video creator",
-                  "fallback_seed": "earnsmart-youtube",
-                  "intro": "YouTube lets you build an audience around a topic you're passionate about.",
-                  "who": ["Hobbyists", "Educators", "Skilled creators"],
-                  "steps": [
-                      "Pick a niche you enjoy.",
-                      "Plan your first 10 videos.",
-                      "Use your phone camera to start.",
-                      "Upload consistently and improve.",
-                  ],
-                  "tip": "Good audio matters more than an expensive camera.",
-                  "warning": "Monetization takes time and depends on platform rules.",
-                  "takeaway": "Consistency and a clear niche grow channels faster than luck.",
-              },
-              {
-                  "title": "🔗 Understanding Affiliate Marketing",
-                  "image_keywords": "marketing,analytics,laptop",
-                  "fallback_seed": "earnsmart-affiliate",
-                  "intro": "Affiliate marketing means earning a commission by recommending real products people can buy.",
-                  "who": ["Bloggers", "Content creators", "Social media users"],
-                  "steps": [
-                      "Join a well-known affiliate program.",
-                      "Only recommend products you trust.",
-                      "Share honest reviews.",
-                      "Track which links perform best.",
-                  ],
-                  "tip": "Disclose affiliate links honestly to your audience.",
-                  "warning": "Avoid schemes that ask you to recruit others for income.",
-                  "takeaway": "Genuine recommendations build trust and repeat income.",
-              },
-              {
-                  "title": "🎨 Getting Started with Graphic Design",
-                  "image_keywords": "graphic design,designer,computer",
-                  "fallback_seed": "earnsmart-graphic-design",
-                  "intro": "Graphic design skills are useful for logos, posters and social media content.",
-                  "who": ["Students", "Creative hobbyists", "Career switchers"],
-                  "steps": [
-                      "Learn one design tool such as Canva.",
-                      "Practice with real design briefs.",
-                      "Build a small portfolio.",
-                      "Offer designs to local businesses.",
-                  ],
-                  "tip": "A focused portfolio of strong pieces works better than many weak ones.",
-                  "warning": "Never share your design software login with strangers.",
-                  "takeaway": "Design work rewards practice and a clear portfolio.",
-              },
-              {
-                  "title": "🎬 Learning Video Editing",
-                  "image_keywords": "video editing,timeline,computer",
-                  "fallback_seed": "earnsmart-video-editing",
-                  "intro": "Video editing skills are needed by YouTubers, businesses and social media creators.",
-                  "who": ["Students", "Content creators", "Freelancers"],
-                  "steps": [
-                      "Learn one editing tool well.",
-                      "Edit sample reels or videos.",
-                      "Build a short showreel.",
-                      "Offer editing to small creators first.",
-                  ],
-                  "tip": "Clean cuts and good pacing matter more than fancy effects.",
-                  "warning": "Avoid pirated editing software.",
-                  "takeaway": "A strong showreel can open doors faster than certificates.",
-              },
-              {
-                  "title": "✍️ Building Income Through Content Writing",
-                  "image_keywords": "writer,typing,laptop",
-                  "fallback_seed": "earnsmart-content-writing",
-                  "intro": "Businesses regularly need clear, well-written content for websites and blogs.",
-                  "who": ["Students", "English graduates", "Hobbyist writers"],
-                  "steps": [
-                      "Practice writing daily.",
-                      "Create 2-3 sample articles.",
-                      "Learn basic SEO writing.",
-                      "Pitch to small businesses or blogs.",
-                  ],
-                  "tip": "Clear, simple writing usually beats overly complex language.",
-                  "warning": "Agree on payment terms before starting work.",
-                  "takeaway": "Good writing plus reliability builds repeat clients.",
-              },
-              {
-                  "title": "💻 Exploring Web Development",
-                  "image_keywords": "coding,programmer,laptop",
-                  "fallback_seed": "earnsmart-web-development",
-                  "intro": "Web development is a valuable skill for building websites and web apps.",
-                  "who": ["Students", "Career switchers", "Tech enthusiasts"],
-                  "steps": [
-                      "Learn HTML, CSS and basic JavaScript.",
-                      "Build 2-3 simple websites.",
-                      "Host them online.",
-                      "Offer small website projects.",
-                  ],
-                  "tip": "Free platforms let you practice before taking paid work.",
-                  "warning": "Never share client passwords or payment credentials casually.",
-                  "takeaway": "Real coding practice matters more than watching tutorials alone.",
-              },
-              {
-                  "title": "🧩 Offering WordPress Services",
-                  "image_keywords": "wordpress,website,laptop",
-                  "fallback_seed": "earnsmart-wordpress",
-                  "intro": "Many small businesses need help setting up and maintaining WordPress websites.",
-                  "who": ["Freelancers", "Students", "Small agency owners"],
-                  "steps": [
-                      "Learn WordPress basics.",
-                      "Practice on a test website.",
-                      "Learn simple plugin setup.",
-                      "Offer setup services locally.",
-                  ],
-                  "tip": "Keep a checklist for every website setup.",
-                  "warning": "Always back up a client's website before making changes.",
-                  "takeaway": "WordPress skills are practical and useful for client work.",
-              },
-              {
-                  "title": "📱 Managing Social Media for Businesses",
-                  "image_keywords": "social media,phone,marketing",
-                  "fallback_seed": "earnsmart-social-media",
-                  "intro": "Small businesses often need help planning and posting on social media.",
-                  "who": ["Students", "Marketing enthusiasts", "Freelancers"],
-                  "steps": [
-                      "Learn basic content planning.",
-                      "Practice on your own social page.",
-                      "Create a simple content calendar.",
-                      "Offer services to local businesses.",
-                  ],
-                  "tip": "Consistency in posting matters more than perfect content.",
-                  "warning": "Never share a client's account passwords insecurely.",
-                  "takeaway": "Reliable posting builds long-term client trust.",
-              },
-              {
-                  "title": "🗂️ Becoming a Virtual Assistant",
-                  "image_keywords": "virtual assistant,office,laptop",
-                  "fallback_seed": "earnsmart-virtual-assistant",
-                  "intro": "Virtual assistants help businesses with emails, scheduling and admin tasks remotely.",
-                  "who": ["Students", "Homemakers", "Career returners"],
-                  "steps": [
-                      "Learn email and calendar tools.",
-                      "List your relevant admin skills.",
-                      "Apply on freelance platforms.",
-                      "Start with small tasks.",
-                  ],
-                  "tip": "Being organized and responsive builds client trust.",
-                  "warning": "Avoid clients who ask for an upfront training fee.",
-                  "takeaway": "Reliability is one of the most valuable VA skills.",
-              },
-              {
-                  "title": "📊 Data Entry and Data-Related Work",
-                  "image_keywords": "spreadsheet,data,computer",
-                  "fallback_seed": "earnsmart-data-entry",
-                  "intro": "Basic computer and spreadsheet skills can open doors to genuine data-related work.",
-                  "who": ["Students", "Graduates", "Homemakers"],
-                  "steps": [
-                      "Learn spreadsheet basics.",
-                      "Practice typing speed and accuracy.",
-                      "Apply through verified platforms.",
-                      "Start with small trial tasks.",
-                  ],
-                  "tip": "Accuracy matters more than speed in most data work.",
-                  "warning": "Genuine data jobs should not require registration fees.",
-                  "takeaway": "Reliable and accurate work builds a good reputation.",
-              },
-              {
-                  "title": "📈 Learning Digital Marketing",
-                  "image_keywords": "digital marketing,dashboard,analytics",
-                  "fallback_seed": "earnsmart-digital-marketing",
-                  "intro": "Digital marketing skills help businesses reach customers online.",
-                  "who": ["Students", "Business owners", "Career switchers"],
-                  "steps": [
-                      "Learn SEO and social advertising basics.",
-                      "Practice on a sample project.",
-                      "Learn to read analytics.",
-                      "Offer services to local businesses.",
-                  ],
-                  "tip": "Understanding your audience matters more than any single tool.",
-                  "warning": "Be cautious of courses promising guaranteed clients.",
-                  "takeaway": "Practical experience is more valuable than certificates alone.",
-              },
-              {
-                  "title": "🛒 Starting Small in Online Selling",
-                  "image_keywords": "ecommerce,packaging,boxes",
-                  "fallback_seed": "earnsmart-online-selling",
-                  "intro": "Selling products online can become a legitimate business when managed carefully.",
-                  "who": ["Small business owners", "Homemakers", "Students"],
-                  "steps": [
-                      "Choose a product people actually need.",
-                      "Compare supplier prices.",
-                      "Calculate delivery costs.",
-                      "Start with a small test batch.",
-                  ],
-                  "tip": "Track every expense from day one.",
-                  "warning": "Not every product or trend will be profitable.",
-                  "takeaway": "Careful planning matters more than fast scaling.",
-              },
-              {
-                  "title": "👕 Exploring Print-on-Demand",
-                  "image_keywords": "tshirt design,printing,ecommerce",
-                  "fallback_seed": "earnsmart-print-on-demand",
-                  "intro": "Print-on-demand lets you sell custom designs without holding inventory.",
-                  "who": ["Designers", "Hobbyists", "Small business owners"],
-                  "steps": [
-                      "Create original designs.",
-                      "Choose a reliable platform.",
-                      "List a small set of products.",
-                      "Promote to a specific audience.",
-                  ],
-                  "tip": "Focused niche designs often perform better than generic designs.",
-                  "warning": "Avoid copyrighted images and logos.",
-                  "takeaway": "Original designs and a clear niche matter most.",
-              },
-              {
-                  "title": "📄 Offering Resume Writing Services",
-                  "image_keywords": "resume,document,laptop",
-                  "fallback_seed": "earnsmart-resume-writing",
-                  "intro": "Many job seekers need help creating clear, professional resumes.",
-                  "who": ["HR professionals", "Writers", "Career coaches"],
-                  "steps": [
-                      "Learn resume formatting basics.",
-                      "Create sample resumes.",
-                      "Offer services to people you know.",
-                      "Collect feedback.",
-                  ],
-                  "tip": "A clean, simple format usually works better than a flashy one.",
-                  "warning": "Never copy someone else's resume content.",
-                  "takeaway": "Clarity and honesty make strong resumes.",
-              },
-              {
-                  "title": "🗣️ Earning Through Translation",
-                  "image_keywords": "translation,language,book",
-                  "fallback_seed": "earnsmart-translation",
-                  "intro": "If you're fluent in two or more languages, translation can be a genuine income source.",
-                  "who": ["Bilingual speakers", "Students", "Language graduates"],
-                  "steps": [
-                      "List the languages you know well.",
-                      "Practice with sample documents.",
-                      "Apply on verified platforms.",
-                      "Start with small projects.",
-                  ],
-                  "tip": "Accuracy and context matter more than literal translation.",
-                  "warning": "Never share confidential client documents publicly.",
-                  "takeaway": "Strong language skills plus reliability build repeat work.",
-              },
-              {
-                  "title": "🏪 Offering Digital Services Locally",
-                  "image_keywords": "small business,shop,laptop",
-                  "fallback_seed": "earnsmart-local-digital",
-                  "intro": "Many local shops need simple digital help such as posters, listings or websites.",
-                  "who
+          with open(image_path, "rb") as f:
+              file_data = f.read()
+
+          body = b""
+
+          body += (
+              f"--{boundary}\r\n"
+              f'Content-Disposition: form-data; '
+              f'name="chat_id"\r\n'
+              f"\r\n"
+              f"{CHAT_ID}\r\n"
+          ).encode("utf-8")
+
+          body += (
+              f"--{boundary}\r\n"
+              f'Content-Disposition: form-data; '
+              f'name="caption"\r\n'
+              f"\r\n"
+              f"<b>💰 EarnSmart India</b>\n"
+              f"Daily earning test post.\n\n"
+              f"#EarnSmartIndia\r\n"
+          ).encode("utf-8")
+
+          body += (
+              f"--{boundary}\r\n"
+              f'Content-Disposition: form-data; '
+              f'name="parse_mode"\r\n"
+              f"\r\n"
+              f"HTML\r\n"
+          ).encode("utf-8")
+
+          body += (
+              f"--{boundary}\r\n"
+              f'Content-Disposition: form-data; '
+              f'name="photo"; '
+              f'filename="earnsmart-test.jpg"\r\n'
+              f"Content-Type: image/jpeg\r\n"
+              f"\r\n"
+          ).encode("utf-8")
+
+          body += file_data
+          body += b"\r\n"
+
+          body += (
+              f"--{boundary}--\r\n"
+          ).encode("utf-8")
+
+          photo_url = (
+              f"https://api.telegram.org/"
+              f"bot{TOKEN}/sendPhoto"
+          )
+
+          photo_request = urllib.request.Request(
+              photo_url,
+              data=body,
+              method="POST",
+              headers={
+                  "Content-Type":
+                  f"multipart/form-data; "
+                  f"boundary={boundary}",
+                  "Content-Length":
+                  str(len(body)),
+                  "User-Agent":
+                  "EarnSmartIndia/1.0"
+              }
+          )
+
+          try:
+
+              with urllib.request.urlopen(
+                  photo_request,
+                  timeout=90
+              ) as response:
+
+                  raw = response.read().decode(
+                      "utf-8",
+                      errors="replace"
+                  )
+
+                  photo_result = json.loads(raw)
+
+                  print()
+                  print(
+                      json.dumps(
+                          photo_result,
+                          indent=2,
+                          ensure_ascii=False
+                      )
+                  )
+
+          except urllib.error.HTTPError as e:
+
+              error_body = e.read().decode(
+                  "utf-8",
+                  errors="replace"
+              )
+
+              print()
+              print("❌ TELEGRAM PHOTO HTTP ERROR")
+              print("HTTP:", e.code)
+              print("Response:", error_body)
+              sys.exit(1)
+
+          except Exception as e:
+
+              print()
+              print("❌ PHOTO REQUEST FAILED")
+              print(repr(e))
+              sys.exit(1)
+
+          if not photo_result.get("ok"):
+
+              print()
+              print("❌ TELEGRAM REJECTED PHOTO")
+              print(
+                  "Error code:",
+                  photo_result.get("error_code")
+              )
+              print(
+                  "Description:",
+                  photo_result.get("description")
+              )
+
+              sys.exit(1)
+
+          print()
+          print("========================================")
+          print("🎉 SUCCESS")
+          print("========================================")
+          print()
+          print(
+              "Photo message ID:",
+              photo_result
+              .get("result", {})
+              .get("message_id")
+          )
+          print()
+          print("Telegram posting is working correctly.")
+          PYTHON_SCRIPT
+
+          echo "Checking Python syntax..."
+
+          python -m py_compile /tmp/telegram_test.py
+
+          echo "Python syntax OK."
+
+          echo "Running Telegram diagnostics..."
+
+          python /tmp/telegram_test.py
