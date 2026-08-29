@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM India time = 3:30 AM UTC
+    # 9:00 AM IST = 3:30 AM UTC
     - cron: "30 3 * * *"
+
+permissions:
+  contents: read
 
 jobs:
   post-to-telegram:
@@ -18,7 +21,7 @@ jobs:
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
 
         run: |
-          python - <<'PY'
+          cat > /tmp/earnsmart_daily.py <<'PYTHON_SCRIPT'
           import os
           import sys
           import html
@@ -47,7 +50,7 @@ jobs:
               sys.exit(1)
 
           # ============================================================
-          # INDIA DATE + DAY-OF-YEAR ROTATION
+          # INDIA DATE
           # ============================================================
 
           now = datetime.now(ZoneInfo("Asia/Kolkata"))
@@ -55,15 +58,12 @@ jobs:
           day_of_year = now.timetuple().tm_yday
 
           # ============================================================
-          # CONTENT LIBRARY (36 EVERGREEN TOPICS)
-          # Each post: title, image_keywords (for topic-matched image),
-          # fallback_seed (deterministic backup image), intro, who,
-          # steps, tip, warning, takeaway.
+          # CONTENT LIBRARY
           # ============================================================
 
           POSTS = [
               {
-                  "title": "\U0001F4BB Freelancing for Beginners",
+                  "title": "💻 Freelancing for Beginners",
                   "image_keywords": "freelancer,laptop,workspace",
                   "fallback_seed": "earnsmart-freelance-beginners",
                   "intro": "Freelancing lets you offer a skill to clients online and get paid per project.",
@@ -75,14 +75,14 @@ jobs:
                       "Apply to small projects first.",
                   ],
                   "tip": "Start with a fair price and raise it as you gain reviews.",
-                  "warning": "Never pay an upfront fee to 'unlock' freelance projects.",
+                  "warning": "Never pay an upfront fee to unlock freelance projects.",
                   "takeaway": "Freelancing rewards a real skill, not luck.",
               },
               {
-                  "title": "\U0001F3E0 Finding Legitimate Remote Jobs",
+                  "title": "🏠 Finding Legitimate Remote Jobs",
                   "image_keywords": "remote work,home office,laptop",
                   "fallback_seed": "earnsmart-remote-jobs",
-                  "intro": "Many companies now hire remote employees for support, sales and technical roles.",
+                  "intro": "Many companies hire remote employees for support, sales and technical roles.",
                   "who": ["Graduates", "Career changers", "Experienced professionals"],
                   "steps": [
                       "Update your resume for remote roles.",
@@ -91,11 +91,11 @@ jobs:
                       "Prepare for a video interview.",
                   ],
                   "tip": "A genuine employer never asks you to pay for a job offer.",
-                  "warning": "Be cautious of 'instant hire' messages on WhatsApp or Telegram.",
-                  "takeaway": "Real remote jobs are earned through skills and interviews, not shortcuts.",
+                  "warning": "Be cautious of instant-hire messages on WhatsApp or Telegram.",
+                  "takeaway": "Real remote jobs are earned through skills and interviews.",
               },
               {
-                  "title": "\U0001F4DA Earning Through Online Tutoring",
+                  "title": "📚 Earning Through Online Tutoring",
                   "image_keywords": "online tutor,teaching,laptop",
                   "fallback_seed": "earnsmart-tutoring",
                   "intro": "If you're strong in a subject or skill, tutoring students online can be a steady income source.",
@@ -106,12 +106,12 @@ jobs:
                       "List yourself on a tutoring platform.",
                       "Prepare a simple lesson plan.",
                   ],
-                  "tip": "Short trial classes help build trust with new students.",
+                  "tip": "Short trial classes can help build trust with new students.",
                   "warning": "Verify tutoring platforms before sharing bank details.",
                   "takeaway": "Good teaching plus consistency builds a reliable student base.",
               },
               {
-                  "title": "\U0001F310 Blogging as a Long-Term Asset",
+                  "title": "🌐 Blogging as a Long-Term Asset",
                   "image_keywords": "blog,writing,laptop",
                   "fallback_seed": "earnsmart-blogging",
                   "intro": "A blog on a topic you understand well can grow into a long-term online asset.",
@@ -127,7 +127,7 @@ jobs:
                   "takeaway": "Blogging income builds slowly but can last for years.",
               },
               {
-                  "title": "\U0001F3A5 Starting a YouTube Channel",
+                  "title": "🎥 Starting a YouTube Channel",
                   "image_keywords": "youtube,camera,video creator",
                   "fallback_seed": "earnsmart-youtube",
                   "intro": "YouTube lets you build an audience around a topic you're passionate about.",
@@ -143,7 +143,7 @@ jobs:
                   "takeaway": "Consistency and a clear niche grow channels faster than luck.",
               },
               {
-                  "title": "\U0001F517 Understanding Affiliate Marketing",
+                  "title": "🔗 Understanding Affiliate Marketing",
                   "image_keywords": "marketing,analytics,laptop",
                   "fallback_seed": "earnsmart-affiliate",
                   "intro": "Affiliate marketing means earning a commission by recommending real products people can buy.",
@@ -159,23 +159,23 @@ jobs:
                   "takeaway": "Genuine recommendations build trust and repeat income.",
               },
               {
-                  "title": "\U0001F3A8 Getting Started with Graphic Design",
+                  "title": "🎨 Getting Started with Graphic Design",
                   "image_keywords": "graphic design,designer,computer",
                   "fallback_seed": "earnsmart-graphic-design",
-                  "intro": "Graphic design skills are in demand for logos, posters and social media content.",
+                  "intro": "Graphic design skills are useful for logos, posters and social media content.",
                   "who": ["Students", "Creative hobbyists", "Career switchers"],
                   "steps": [
-                      "Learn one design tool like Canva.",
+                      "Learn one design tool such as Canva.",
                       "Practice with real design briefs.",
                       "Build a small portfolio.",
                       "Offer designs to local businesses.",
                   ],
-                  "tip": "A focused portfolio of 5-6 strong pieces works better than many weak ones.",
+                  "tip": "A focused portfolio of strong pieces works better than many weak ones.",
                   "warning": "Never share your design software login with strangers.",
                   "takeaway": "Design work rewards practice and a clear portfolio.",
               },
               {
-                  "title": "\U0001F3AC Learning Video Editing",
+                  "title": "🎬 Learning Video Editing",
                   "image_keywords": "video editing,timeline,computer",
                   "fallback_seed": "earnsmart-video-editing",
                   "intro": "Video editing skills are needed by YouTubers, businesses and social media creators.",
@@ -187,11 +187,11 @@ jobs:
                       "Offer editing to small creators first.",
                   ],
                   "tip": "Clean cuts and good pacing matter more than fancy effects.",
-                  "warning": "Avoid pirated editing software; it risks your device's security.",
-                  "takeaway": "A strong showreel opens doors faster than certificates.",
+                  "warning": "Avoid pirated editing software.",
+                  "takeaway": "A strong showreel can open doors faster than certificates.",
               },
               {
-                  "title": "\u270D\uFE0F Building Income Through Content Writing",
+                  "title": "✍️ Building Income Through Content Writing",
                   "image_keywords": "writer,typing,laptop",
                   "fallback_seed": "earnsmart-content-writing",
                   "intro": "Businesses regularly need clear, well-written content for websites and blogs.",
@@ -203,19 +203,19 @@ jobs:
                       "Pitch to small businesses or blogs.",
                   ],
                   "tip": "Clear, simple writing usually beats overly complex language.",
-                  "warning": "Avoid clients who refuse to agree on payment terms upfront.",
+                  "warning": "Agree on payment terms before starting work.",
                   "takeaway": "Good writing plus reliability builds repeat clients.",
               },
               {
-                  "title": "\U0001F4BB Exploring Web Development",
+                  "title": "💻 Exploring Web Development",
                   "image_keywords": "coding,programmer,laptop",
                   "fallback_seed": "earnsmart-web-development",
-                  "intro": "Web development is a valuable skill for building websites and web apps for clients.",
+                  "intro": "Web development is a valuable skill for building websites and web apps.",
                   "who": ["Students", "Career switchers", "Tech enthusiasts"],
                   "steps": [
                       "Learn HTML, CSS and basic JavaScript.",
                       "Build 2-3 simple websites.",
-                      "Host them online for free.",
+                      "Host them online.",
                       "Offer small website projects.",
                   ],
                   "tip": "Free platforms let you practice before taking paid work.",
@@ -223,23 +223,23 @@ jobs:
                   "takeaway": "Real coding practice matters more than watching tutorials alone.",
               },
               {
-                  "title": "\U0001F9E9 Offering WordPress Services",
+                  "title": "🧩 Offering WordPress Services",
                   "image_keywords": "wordpress,website,laptop",
                   "fallback_seed": "earnsmart-wordpress",
                   "intro": "Many small businesses need help setting up and maintaining WordPress websites.",
                   "who": ["Freelancers", "Students", "Small agency owners"],
                   "steps": [
                       "Learn WordPress basics.",
-                      "Practice on a free test website.",
+                      "Practice on a test website.",
                       "Learn simple plugin setup.",
                       "Offer setup services locally.",
                   ],
-                  "tip": "Keep a checklist for each website setup to stay consistent.",
+                  "tip": "Keep a checklist for every website setup.",
                   "warning": "Always back up a client's website before making changes.",
-                  "takeaway": "WordPress skills are practical and always in demand.",
+                  "takeaway": "WordPress skills are practical and useful for client work.",
               },
               {
-                  "title": "\U0001F4F1 Managing Social Media for Businesses",
+                  "title": "📱 Managing Social Media for Businesses",
                   "image_keywords": "social media,phone,marketing",
                   "fallback_seed": "earnsmart-social-media",
                   "intro": "Small businesses often need help planning and posting on social media.",
@@ -252,26 +252,26 @@ jobs:
                   ],
                   "tip": "Consistency in posting matters more than perfect content.",
                   "warning": "Never share a client's account passwords insecurely.",
-                  "takeaway": "Reliable, consistent posting builds long-term client trust.",
+                  "takeaway": "Reliable posting builds long-term client trust.",
               },
               {
-                  "title": "\U0001F5C2\uFE0F Becoming a Virtual Assistant",
+                  "title": "🗂️ Becoming a Virtual Assistant",
                   "image_keywords": "virtual assistant,office,laptop",
                   "fallback_seed": "earnsmart-virtual-assistant",
                   "intro": "Virtual assistants help businesses with emails, scheduling and admin tasks remotely.",
                   "who": ["Students", "Homemakers", "Career returners"],
                   "steps": [
-                      "Learn basic tools like email and calendars.",
-                      "List relevant admin skills.",
+                      "Learn email and calendar tools.",
+                      "List your relevant admin skills.",
                       "Apply on freelance platforms.",
-                      "Start with small, part-time tasks.",
+                      "Start with small tasks.",
                   ],
-                  "tip": "Being organized and responsive builds strong client trust.",
-                  "warning": "Avoid clients who ask you to pay a 'training fee' upfront.",
-                  "takeaway": "Reliability is the most valuable skill for a virtual assistant.",
+                  "tip": "Being organized and responsive builds client trust.",
+                  "warning": "Avoid clients who ask for an upfront training fee.",
+                  "takeaway": "Reliability is one of the most valuable VA skills.",
               },
               {
-                  "title": "\U0001F4CA Data Entry and Data-Related Work",
+                  "title": "📊 Data Entry and Data-Related Work",
                   "image_keywords": "spreadsheet,data,computer",
                   "fallback_seed": "earnsmart-data-entry",
                   "intro": "Basic computer and spreadsheet skills can open doors to genuine data-related work.",
@@ -283,35 +283,35 @@ jobs:
                       "Start with small trial tasks.",
                   ],
                   "tip": "Accuracy matters more than speed in most data work.",
-                  "warning": "Genuine data jobs never ask you to pay registration fees.",
-                  "takeaway": "Reliable, accurate work builds a steady reputation.",
+                  "warning": "Genuine data jobs should not require registration fees.",
+                  "takeaway": "Reliable and accurate work builds a good reputation.",
               },
               {
-                  "title": "\U0001F4C8 Learning Digital Marketing",
+                  "title": "📈 Learning Digital Marketing",
                   "image_keywords": "digital marketing,dashboard,analytics",
                   "fallback_seed": "earnsmart-digital-marketing",
-                  "intro": "Digital marketing skills help businesses reach customers online, and are widely in demand.",
+                  "intro": "Digital marketing skills help businesses reach customers online.",
                   "who": ["Students", "Business owners", "Career switchers"],
                   "steps": [
-                      "Learn the basics of SEO and social ads.",
+                      "Learn SEO and social advertising basics.",
                       "Practice on a sample project.",
                       "Learn to read analytics.",
                       "Offer services to local businesses.",
                   ],
                   "tip": "Understanding your audience matters more than any single tool.",
-                  "warning": "Be cautious of paid courses promising guaranteed clients.",
+                  "warning": "Be cautious of courses promising guaranteed clients.",
                   "takeaway": "Practical experience is more valuable than certificates alone.",
               },
               {
-                  "title": "\U0001F6D2 Starting Small in Online Selling",
+                  "title": "🛒 Starting Small in Online Selling",
                   "image_keywords": "ecommerce,packaging,boxes",
                   "fallback_seed": "earnsmart-online-selling",
                   "intro": "Selling products online can become a legitimate business when managed carefully.",
                   "who": ["Small business owners", "Homemakers", "Students"],
                   "steps": [
                       "Choose a product people actually need.",
-                      "Compare supplier prices carefully.",
-                      "Calculate all delivery costs.",
+                      "Compare supplier prices.",
+                      "Calculate delivery costs.",
                       "Start with a small test batch.",
                   ],
                   "tip": "Track every expense from day one.",
@@ -319,45 +319,56 @@ jobs:
                   "takeaway": "Careful planning matters more than fast scaling.",
               },
               {
-                  "title": "\U0001F455 Exploring Print-on-Demand Business",
+                  "title": "👕 Exploring Print-on-Demand",
                   "image_keywords": "tshirt design,printing,ecommerce",
                   "fallback_seed": "earnsmart-print-on-demand",
                   "intro": "Print-on-demand lets you sell custom designs without holding inventory.",
                   "who": ["Designers", "Hobbyists", "Small business owners"],
                   "steps": [
-                      "Create simple, original designs.",
-                      "Choose a reliable print-on-demand platform.",
+                      "Create original designs.",
+                      "Choose a reliable platform.",
                       "List a small set of products.",
                       "Promote to a specific audience.",
                   ],
-                  "tip": "A focused niche design often sells better than generic designs.",
-                  "warning": "Avoid using copyrighted images or logos in your designs.",
+                  "tip": "Focused niche designs often perform better than generic designs.",
+                  "warning": "Avoid copyrighted images and logos.",
                   "takeaway": "Original designs and a clear niche matter most.",
               },
               {
-                  "title": "\U0001F4C4 Offering Resume Writing Services",
+                  "title": "📄 Offering Resume Writing Services",
                   "image_keywords": "resume,document,laptop",
                   "fallback_seed": "earnsmart-resume-writing",
                   "intro": "Many job seekers need help creating clear, professional resumes.",
                   "who": ["HR professionals", "Writers", "Career coaches"],
                   "steps": [
                       "Learn resume formatting basics.",
-                      "Create 2-3 sample resumes.",
-                      "Offer services to friends first.",
-                      "Collect feedback and testimonials.",
+                      "Create sample resumes.",
+                      "Offer services to people you know.",
+                      "Collect feedback.",
                   ],
                   "tip": "A clean, simple format usually works better than a flashy one.",
-                  "warning": "Never copy someone else's resume content directly.",
-                  "takeaway": "Clarity and honesty make the strongest resumes.",
+                  "warning": "Never copy someone else's resume content.",
+                  "takeaway": "Clarity and honesty make strong resumes.",
               },
               {
-                  "title": "\U0001F5E3\uFE0F Earning Through Translation Services",
+                  "title": "🗣️ Earning Through Translation",
                   "image_keywords": "translation,language,book",
                   "fallback_seed": "earnsmart-translation",
-                  "intro": "If you're fluent in two or more languages, translation work can be a genuine income source.",
+                  "intro": "If you're fluent in two or more languages, translation can be a genuine income source.",
                   "who": ["Bilingual speakers", "Students", "Language graduates"],
                   "steps": [
-                      "List the languages you're fluent in.",
+                      "List the languages you know well.",
                       "Practice with sample documents.",
-                      "Apply on verified translation platforms.",
-                      "Start with s
+                      "Apply on verified platforms.",
+                      "Start with small projects.",
+                  ],
+                  "tip": "Accuracy and context matter more than literal translation.",
+                  "warning": "Never share confidential client documents publicly.",
+                  "takeaway": "Strong language skills plus reliability build repeat work.",
+              },
+              {
+                  "title": "🏪 Offering Digital Services Locally",
+                  "image_keywords": "small business,shop,laptop",
+                  "fallback_seed": "earnsmart-local-digital",
+                  "intro": "Many local shops need simple digital help such as posters, listings or websites.",
+                  "who
