@@ -26,6 +26,7 @@ jobs:
           import time
           import urllib.request
           import urllib.error
+          import urllib.parse
           import uuid
           from datetime import datetime
           from zoneinfo import ZoneInfo
@@ -46,487 +47,317 @@ jobs:
               sys.exit(1)
 
           # ============================================================
-          # INDIA DATE
+          # INDIA DATE + DAY-OF-YEAR ROTATION
           # ============================================================
 
           now = datetime.now(ZoneInfo("Asia/Kolkata"))
           date_text = now.strftime("%d %B %Y")
-
-          # Monday = 0 ... Sunday = 6
-          day_number = now.weekday()
+          day_of_year = now.timetuple().tm_yday
 
           # ============================================================
-          # 7-DAY CONTENT ROTATION
+          # CONTENT LIBRARY (36 EVERGREEN TOPICS)
+          # Each post: title, image_keywords (for topic-matched image),
+          # fallback_seed (deterministic backup image), intro, who,
+          # steps, tip, warning, takeaway.
           # ============================================================
 
-          posts = [
-
+          POSTS = [
               {
-                  "title": "🌐 Website & Blog: Build a Long-Term Asset",
-                  "image": "https://picsum.photos/seed/earnsmart-website/1200/800",
-                  "intro": "💻 A useful website can become a long-term online asset.",
-                  "sections": [
-                      (
-                          "Possible topics",
-                          [
-                              "Technology",
-                              "Education",
-                              "Finance basics",
-                              "Jobs",
-                              "Tutorials",
-                              "Local information"
-                          ]
-                      ),
-                      (
-                          "🚀 Basic plan",
-                          [
-                              "Pick one clear topic.",
-                              "Publish genuinely useful content.",
-                              "Learn basic SEO.",
-                              "Build traffic gradually.",
-                              "Explore legitimate monetization options."
-                          ]
-                      )
+                  "title": "\U0001F4BB Freelancing for Beginners",
+                  "image_keywords": "freelancer,laptop,workspace",
+                  "fallback_seed": "earnsmart-freelance-beginners",
+                  "intro": "Freelancing lets you offer a skill to clients online and get paid per project.",
+                  "who": ["Students", "Job seekers", "Skilled professionals"],
+                  "steps": [
+                      "Pick one skill you already have.",
+                      "Create 2-3 sample projects.",
+                      "List yourself on a genuine freelance platform.",
+                      "Apply to small projects first.",
                   ],
-                  "warning": "Don't expect instant income. Traffic and trust take time."
+                  "tip": "Start with a fair price and raise it as you gain reviews.",
+                  "warning": "Never pay an upfront fee to 'unlock' freelance projects.",
+                  "takeaway": "Freelancing rewards a real skill, not luck.",
               },
-
               {
-                  "title": "💻 Freelancing: Start With One Useful Skill",
-                  "image": "https://picsum.photos/seed/earnsmart-freelancing/1200/800",
-                  "intro": "🚀 Freelancing can become an income source when you develop a useful skill and find genuine clients.",
-                  "sections": [
-                      (
-                          "Popular skills",
-                          [
-                              "Graphic design",
-                              "Video editing",
-                              "Content writing",
-                              "Web development",
-                              "Virtual assistance",
-                              "Data-related work"
-                          ]
-                      ),
-                      (
-                          "🚀 Getting started",
-                          [
-                              "Choose one skill.",
-                              "Practice regularly.",
-                              "Create 2–3 sample projects.",
-                              "Build a simple portfolio.",
-                              "Start with small legitimate projects."
-                          ]
-                      )
+                  "title": "\U0001F3E0 Finding Legitimate Remote Jobs",
+                  "image_keywords": "remote work,home office,laptop",
+                  "fallback_seed": "earnsmart-remote-jobs",
+                  "intro": "Many companies now hire remote employees for support, sales and technical roles.",
+                  "who": ["Graduates", "Career changers", "Experienced professionals"],
+                  "steps": [
+                      "Update your resume for remote roles.",
+                      "Search company career pages directly.",
+                      "Use trusted job portals.",
+                      "Prepare for a video interview.",
                   ],
-                  "warning": "Never pay money to someone promising a guaranteed freelance job."
+                  "tip": "A genuine employer never asks you to pay for a job offer.",
+                  "warning": "Be cautious of 'instant hire' messages on WhatsApp or Telegram.",
+                  "takeaway": "Real remote jobs are earned through skills and interviews, not shortcuts.",
               },
-
               {
-                  "title": "🏠 Remote Work: Find Legitimate Online Jobs",
-                  "image": "https://picsum.photos/seed/earnsmart-remote/1200/800",
-                  "intro": "💼 Remote work can provide legitimate income when you have the right skills.",
-                  "sections": [
-                      (
-                          "Common areas",
-                          [
-                              "Customer support",
-                              "Virtual assistance",
-                              "Data-related work",
-                              "Software development",
-                              "Design",
-                              "Sales",
-                              "Content work"
-                          ]
-                      ),
-                      (
-                          "🚀 Before applying",
-                          [
-                              "Prepare a professional CV.",
-                              "Create a portfolio where relevant.",
-                              "Apply through legitimate company websites or platforms.",
-                              "Research the employer.",
-                              "Never pay for a guaranteed job."
-                          ]
-                      )
+                  "title": "\U0001F4DA Earning Through Online Tutoring",
+                  "image_keywords": "online tutor,teaching,laptop",
+                  "fallback_seed": "earnsmart-tutoring",
+                  "intro": "If you're strong in a subject or skill, tutoring students online can be a steady income source.",
+                  "who": ["Teachers", "College students", "Subject experts"],
+                  "steps": [
+                      "Choose a subject you know well.",
+                      "Decide between 1-on-1 or group classes.",
+                      "List yourself on a tutoring platform.",
+                      "Prepare a simple lesson plan.",
                   ],
-                  "warning": "Genuine employers normally don't demand money simply to give you a job."
+                  "tip": "Short trial classes help build trust with new students.",
+                  "warning": "Verify tutoring platforms before sharing bank details.",
+                  "takeaway": "Good teaching plus consistency builds a reliable student base.",
               },
-
               {
-                  "title": "📱 Learn a Digital Skill Using Your Phone",
-                  "image": "https://picsum.photos/seed/earnsmart-phone/1200/800",
-                  "intro": "📚 A smartphone can be useful for learning skills that may later help you earn online.",
-                  "sections": [
-                      (
-                          "Skills to consider",
-                          [
-                              "Canva design",
-                              "Video editing",
-                              "Content writing",
-                              "Social media management",
-                              "Basic coding",
-                              "Digital marketing"
-                          ]
-                      ),
-                      (
-                          "🚀 Simple routine",
-                          [
-                              "Choose one skill.",
-                              "Learn for 30–60 minutes daily.",
-                              "Practice with real examples.",
-                              "Create sample work.",
-                              "Improve based on feedback."
-                          ]
-                      )
+                  "title": "\U0001F310 Blogging as a Long-Term Asset",
+                  "image_keywords": "blog,writing,laptop",
+                  "fallback_seed": "earnsmart-blogging",
+                  "intro": "A blog on a topic you understand well can grow into a long-term online asset.",
+                  "who": ["Writers", "Hobbyists", "Subject experts"],
+                  "steps": [
+                      "Choose one clear topic.",
+                      "Publish genuinely useful articles.",
+                      "Learn basic SEO.",
+                      "Track visitors and improve content.",
                   ],
-                  "warning": "Learning takes time. Avoid courses that promise guaranteed income."
+                  "tip": "Consistency matters more than posting frequency.",
+                  "warning": "Avoid copying content from other websites.",
+                  "takeaway": "Blogging income builds slowly but can last for years.",
               },
-
               {
-                  "title": "🛒 Online Selling: Start Small",
-                  "image": "https://picsum.photos/seed/earnsmart-selling/1200/800",
-                  "intro": "📦 Selling useful products or services online can become a legitimate business when managed carefully.",
-                  "sections": [
-                      (
-                          "Things to consider",
-                          [
-                              "Choose a product people actually need.",
-                              "Compare supplier prices.",
-                              "Calculate delivery and platform costs.",
-                              "Use clear product photos.",
-                              "Provide honest descriptions."
-                          ]
-                      ),
-                      (
-                          "🚀 Start carefully",
-                          [
-                              "Begin with a small budget.",
-                              "Test demand first.",
-                              "Track every expense.",
-                              "Keep customer records.",
-                              "Reinvest only after understanding your margins."
-                          ]
-                      )
+                  "title": "\U0001F3A5 Starting a YouTube Channel",
+                  "image_keywords": "youtube,camera,video creator",
+                  "fallback_seed": "earnsmart-youtube",
+                  "intro": "YouTube lets you build an audience around a topic you're passionate about.",
+                  "who": ["Hobbyists", "Educators", "Skilled creators"],
+                  "steps": [
+                      "Pick a niche you enjoy.",
+                      "Plan your first 10 videos.",
+                      "Use your phone camera to start.",
+                      "Upload consistently and improve.",
                   ],
-                  "warning": "Never assume every product or business model will be profitable."
+                  "tip": "Good audio matters more than an expensive camera.",
+                  "warning": "Monetization takes time and depends on platform rules.",
+                  "takeaway": "Consistency and a clear niche grow channels faster than luck.",
               },
-
               {
-                  "title": "🎨 Turn a Skill Into a Simple Service",
-                  "image": "https://picsum.photos/seed/earnsmart-service/1200/800",
-                  "intro": "💡 One practical skill can sometimes be packaged into a simple service for individuals or small businesses.",
-                  "sections": [
-                      (
-                          "Example services",
-                          [
-                              "Poster design",
-                              "Short video editing",
-                              "Website setup",
-                              "Social media posts",
-                              "Resume formatting",
-                              "Basic data entry"
-                          ]
-                      ),
-                      (
-                          "🚀 How to begin",
-                          [
-                              "Select one service.",
-                              "Create sample work.",
-                              "Set a clear starting price.",
-                              "Show your work professionally.",
-                              "Ask satisfied customers for reviews."
-                          ]
-                      )
+                  "title": "\U0001F517 Understanding Affiliate Marketing",
+                  "image_keywords": "marketing,analytics,laptop",
+                  "fallback_seed": "earnsmart-affiliate",
+                  "intro": "Affiliate marketing means earning a commission by recommending real products people can buy.",
+                  "who": ["Bloggers", "Content creators", "Social media users"],
+                  "steps": [
+                      "Join a well-known affiliate program.",
+                      "Only recommend products you trust.",
+                      "Share honest reviews.",
+                      "Track which links perform best.",
                   ],
-                  "warning": "Avoid copying other people's work or making unrealistic promises."
+                  "tip": "Disclose affiliate links honestly to your audience.",
+                  "warning": "Avoid schemes that ask you to recruit others for income.",
+                  "takeaway": "Genuine recommendations build trust and repeat income.",
               },
-
               {
-                  "title": "💰 Build Multiple Legitimate Income Skills",
-                  "image": "https://picsum.photos/seed/earnsmart-skills/1200/800",
-                  "intro": "📈 A stronger long-term strategy is to build useful skills instead of searching for instant-money schemes.",
-                  "sections": [
-                      (
-                          "Useful areas",
-                          [
-                              "Freelancing",
-                              "Content creation",
-                              "Websites",
-                              "Digital services",
-                              "Online selling",
-                              "Remote employment"
-                          ]
-                      ),
-                      (
-                          "🚀 Long-term approach",
-                          [
-                              "Learn one skill first.",
-                              "Get practical experience.",
-                              "Build proof of your work.",
-                              "Find legitimate opportunities.",
-                              "Gradually add another complementary skill."
-                          ]
-                      )
+                  "title": "\U0001F3A8 Getting Started with Graphic Design",
+                  "image_keywords": "graphic design,designer,computer",
+                  "fallback_seed": "earnsmart-graphic-design",
+                  "intro": "Graphic design skills are in demand for logos, posters and social media content.",
+                  "who": ["Students", "Creative hobbyists", "Career switchers"],
+                  "steps": [
+                      "Learn one design tool like Canva.",
+                      "Practice with real design briefs.",
+                      "Build a small portfolio.",
+                      "Offer designs to local businesses.",
                   ],
-                  "warning": "There is no guaranteed easy-money method. Skill, effort and consistency matter."
-              }
-          ]
-
-          post = posts[day_number % len(posts)]
-
-          # ============================================================
-          # HTML ESCAPING
-          # ============================================================
-
-          def esc(value):
-              return html.escape(str(value), quote=False)
-
-          # ============================================================
-          # BUILD TELEGRAM CAPTION
-          # ============================================================
-
-          parts = []
-
-          parts.append(
-              "<b>💰 EarnSmart India — Daily Earning Tip</b>"
-          )
-
-          parts.append(
-              f"📅 {esc(date_text)}"
-          )
-
-          parts.append(
-              f"<b>{esc(post['title'])}</b>"
-          )
-
-          parts.append(
-              esc(post["intro"])
-          )
-
-          for heading, items in post["sections"]:
-              parts.append("")
-              parts.append(f"<b>{esc(heading)}:</b>")
-
-              for item in items:
-                  parts.append(f"• {esc(item)}")
-
-          parts.append("")
-          parts.append(
-              f"🚨 <b>Scam warning:</b> {esc(post['warning'])}"
-          )
-
-          parts.append("")
-          parts.append(
-              "💡 <b>Remember:</b>\n"
-              "Legitimate online income normally requires "
-              "skill, effort, consistency and patience."
-          )
-
-          parts.append("")
-          parts.append(
-              "📢 <b>Follow EarnSmart India</b> for practical "
-              "online earning tips."
-          )
-
-          parts.append("")
-          parts.append(
-              "#EarnSmartIndia #OnlineEarning "
-              "#WorkFromHome #OnlineJobs"
-          )
-
-          caption = "\n".join(parts)
-
-          # Telegram photo captions have a 1024-character limit.
-          # Keep a safe margin.
-          if len(caption) > 1000:
-              caption = caption[:997] + "..."
-
-          print("Selected topic:")
-          print(post["title"])
-          print("Caption length:", len(caption))
-
-          # ============================================================
-          # DOWNLOAD IMAGE
-          # ============================================================
-
-          image_path = "/tmp/earnsmart_daily.jpg"
-
-          print("Downloading image...")
-
-          image_request = urllib.request.Request(
-              post["image"],
-              headers={
-                  "User-Agent": "Mozilla/5.0"
-              }
-          )
-
-          try:
-              with urllib.request.urlopen(image_request, timeout=60) as response:
-                  image_data = response.read()
-
-              if not image_data:
-                  raise RuntimeError("Downloaded image is empty.")
-
-              with open(image_path, "wb") as image_file:
-                  image_file.write(image_data)
-
-              print("Image downloaded successfully.")
-              print("Image size:", len(image_data), "bytes")
-
-          except Exception as e:
-              print("ERROR: Image download failed:", e)
-              sys.exit(1)
-
-          # ============================================================
-          # TELEGRAM SEND PHOTO
-          # ============================================================
-
-          api_url = (
-              f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-          )
-
-          def make_field(name, value, boundary):
-              return (
-                  f"--{boundary}\r\n"
-                  f'Content-Disposition: form-data; name="{name}"\r\n'
-                  f"\r\n"
-                  f"{value}\r\n"
-              ).encode("utf-8")
-
-          def make_file_field(
-              name,
-              filename,
-              file_data,
-              content_type,
-              boundary
-          ):
-              header = (
-                  f"--{boundary}\r\n"
-                  f'Content-Disposition: form-data; '
-                  f'name="{name}"; filename="{filename}"\r\n'
-                  f"Content-Type: {content_type}\r\n"
-                  f"\r\n"
-              ).encode("utf-8")
-
-              return header + file_data + b"\r\n"
-
-          def send_telegram_photo():
-              boundary = "----EarnSmartIndia" + uuid.uuid4().hex
-
-              with open(image_path, "rb") as image_file:
-                  file_data = image_file.read()
-
-              body = b""
-
-              body += make_field(
-                  "chat_id",
-                  CHAT_ID,
-                  boundary
-              )
-
-              body += make_field(
-                  "caption",
-                  caption,
-                  boundary
-              )
-
-              body += make_field(
-                  "parse_mode",
-                  "HTML",
-                  boundary
-              )
-
-              body += make_file_field(
-                  "photo",
-                  "earnsmart-daily.jpg",
-                  file_data,
-                  "image/jpeg",
-                  boundary
-              )
-
-              body += (
-                  f"--{boundary}--\r\n"
-              ).encode("utf-8")
-
-              request = urllib.request.Request(
-                  api_url,
-                  data=body,
-                  method="POST",
-                  headers={
-                      "Content-Type":
-                          f"multipart/form-data; boundary={boundary}",
-                      "Content-Length": str(len(body)),
-                      "User-Agent": "EarnSmartIndia-GitHubActions/1.0"
-                  }
-              )
-
-              try:
-                  with urllib.request.urlopen(
-                      request,
-                      timeout=90
-                  ) as response:
-
-                      raw = response.read().decode("utf-8")
-
-                  result = json.loads(raw)
-
-                  if not result.get("ok"):
-                      raise RuntimeError(
-                          "Telegram API returned an error: "
-                          + raw
-                      )
-
-                  print("")
-                  print("========================================")
-                  print("SUCCESS: Telegram post published.")
-                  print("========================================")
-                  print("Message ID:",
-                        result.get("result", {}).get("message_id"))
-
-                  return True
-
-              except urllib.error.HTTPError as e:
-                  error_body = e.read().decode(
-                      "utf-8",
-                      errors="replace"
-                  )
-
-                  print("")
-                  print("Telegram HTTP error:", e.code)
-                  print(error_body)
-
-                  return False
-
-              except Exception as e:
-                  print("Telegram request failed:", e)
-                  return False
-
-          # ============================================================
-          # RETRY
-          # ============================================================
-
-          success = False
-
-          for attempt in range(1, 4):
-
-              print(
-                  f"Sending Telegram post "
-                  f"(attempt {attempt}/3)..."
-              )
-
-              if send_telegram_photo():
-                  success = True
-                  break
-
-              if attempt < 3:
-                  print("Waiting 5 seconds before retry...")
-                  time.sleep(5)
-
-          if not success:
-              print("")
-              print("ERROR: Telegram publishing failed after 3 attempts.")
-              sys.exit(1)
-
-          print("")
-          print("Daily post completed successfully.")
-          PY
+                  "tip": "A focused portfolio of 5-6 strong pieces works better than many weak ones.",
+                  "warning": "Never share your design software login with strangers.",
+                  "takeaway": "Design work rewards practice and a clear portfolio.",
+              },
+              {
+                  "title": "\U0001F3AC Learning Video Editing",
+                  "image_keywords": "video editing,timeline,computer",
+                  "fallback_seed": "earnsmart-video-editing",
+                  "intro": "Video editing skills are needed by YouTubers, businesses and social media creators.",
+                  "who": ["Students", "Content creators", "Freelancers"],
+                  "steps": [
+                      "Learn one editing tool well.",
+                      "Edit sample reels or videos.",
+                      "Build a short showreel.",
+                      "Offer editing to small creators first.",
+                  ],
+                  "tip": "Clean cuts and good pacing matter more than fancy effects.",
+                  "warning": "Avoid pirated editing software; it risks your device's security.",
+                  "takeaway": "A strong showreel opens doors faster than certificates.",
+              },
+              {
+                  "title": "\u270D\uFE0F Building Income Through Content Writing",
+                  "image_keywords": "writer,typing,laptop",
+                  "fallback_seed": "earnsmart-content-writing",
+                  "intro": "Businesses regularly need clear, well-written content for websites and blogs.",
+                  "who": ["Students", "English graduates", "Hobbyist writers"],
+                  "steps": [
+                      "Practice writing daily.",
+                      "Create 2-3 sample articles.",
+                      "Learn basic SEO writing.",
+                      "Pitch to small businesses or blogs.",
+                  ],
+                  "tip": "Clear, simple writing usually beats overly complex language.",
+                  "warning": "Avoid clients who refuse to agree on payment terms upfront.",
+                  "takeaway": "Good writing plus reliability builds repeat clients.",
+              },
+              {
+                  "title": "\U0001F4BB Exploring Web Development",
+                  "image_keywords": "coding,programmer,laptop",
+                  "fallback_seed": "earnsmart-web-development",
+                  "intro": "Web development is a valuable skill for building websites and web apps for clients.",
+                  "who": ["Students", "Career switchers", "Tech enthusiasts"],
+                  "steps": [
+                      "Learn HTML, CSS and basic JavaScript.",
+                      "Build 2-3 simple websites.",
+                      "Host them online for free.",
+                      "Offer small website projects.",
+                  ],
+                  "tip": "Free platforms let you practice before taking paid work.",
+                  "warning": "Never share client passwords or payment credentials casually.",
+                  "takeaway": "Real coding practice matters more than watching tutorials alone.",
+              },
+              {
+                  "title": "\U0001F9E9 Offering WordPress Services",
+                  "image_keywords": "wordpress,website,laptop",
+                  "fallback_seed": "earnsmart-wordpress",
+                  "intro": "Many small businesses need help setting up and maintaining WordPress websites.",
+                  "who": ["Freelancers", "Students", "Small agency owners"],
+                  "steps": [
+                      "Learn WordPress basics.",
+                      "Practice on a free test website.",
+                      "Learn simple plugin setup.",
+                      "Offer setup services locally.",
+                  ],
+                  "tip": "Keep a checklist for each website setup to stay consistent.",
+                  "warning": "Always back up a client's website before making changes.",
+                  "takeaway": "WordPress skills are practical and always in demand.",
+              },
+              {
+                  "title": "\U0001F4F1 Managing Social Media for Businesses",
+                  "image_keywords": "social media,phone,marketing",
+                  "fallback_seed": "earnsmart-social-media",
+                  "intro": "Small businesses often need help planning and posting on social media.",
+                  "who": ["Students", "Marketing enthusiasts", "Freelancers"],
+                  "steps": [
+                      "Learn basic content planning.",
+                      "Practice on your own social page.",
+                      "Create a simple content calendar.",
+                      "Offer services to local businesses.",
+                  ],
+                  "tip": "Consistency in posting matters more than perfect content.",
+                  "warning": "Never share a client's account passwords insecurely.",
+                  "takeaway": "Reliable, consistent posting builds long-term client trust.",
+              },
+              {
+                  "title": "\U0001F5C2\uFE0F Becoming a Virtual Assistant",
+                  "image_keywords": "virtual assistant,office,laptop",
+                  "fallback_seed": "earnsmart-virtual-assistant",
+                  "intro": "Virtual assistants help businesses with emails, scheduling and admin tasks remotely.",
+                  "who": ["Students", "Homemakers", "Career returners"],
+                  "steps": [
+                      "Learn basic tools like email and calendars.",
+                      "List relevant admin skills.",
+                      "Apply on freelance platforms.",
+                      "Start with small, part-time tasks.",
+                  ],
+                  "tip": "Being organized and responsive builds strong client trust.",
+                  "warning": "Avoid clients who ask you to pay a 'training fee' upfront.",
+                  "takeaway": "Reliability is the most valuable skill for a virtual assistant.",
+              },
+              {
+                  "title": "\U0001F4CA Data Entry and Data-Related Work",
+                  "image_keywords": "spreadsheet,data,computer",
+                  "fallback_seed": "earnsmart-data-entry",
+                  "intro": "Basic computer and spreadsheet skills can open doors to genuine data-related work.",
+                  "who": ["Students", "Graduates", "Homemakers"],
+                  "steps": [
+                      "Learn spreadsheet basics.",
+                      "Practice typing speed and accuracy.",
+                      "Apply through verified platforms.",
+                      "Start with small trial tasks.",
+                  ],
+                  "tip": "Accuracy matters more than speed in most data work.",
+                  "warning": "Genuine data jobs never ask you to pay registration fees.",
+                  "takeaway": "Reliable, accurate work builds a steady reputation.",
+              },
+              {
+                  "title": "\U0001F4C8 Learning Digital Marketing",
+                  "image_keywords": "digital marketing,dashboard,analytics",
+                  "fallback_seed": "earnsmart-digital-marketing",
+                  "intro": "Digital marketing skills help businesses reach customers online, and are widely in demand.",
+                  "who": ["Students", "Business owners", "Career switchers"],
+                  "steps": [
+                      "Learn the basics of SEO and social ads.",
+                      "Practice on a sample project.",
+                      "Learn to read analytics.",
+                      "Offer services to local businesses.",
+                  ],
+                  "tip": "Understanding your audience matters more than any single tool.",
+                  "warning": "Be cautious of paid courses promising guaranteed clients.",
+                  "takeaway": "Practical experience is more valuable than certificates alone.",
+              },
+              {
+                  "title": "\U0001F6D2 Starting Small in Online Selling",
+                  "image_keywords": "ecommerce,packaging,boxes",
+                  "fallback_seed": "earnsmart-online-selling",
+                  "intro": "Selling products online can become a legitimate business when managed carefully.",
+                  "who": ["Small business owners", "Homemakers", "Students"],
+                  "steps": [
+                      "Choose a product people actually need.",
+                      "Compare supplier prices carefully.",
+                      "Calculate all delivery costs.",
+                      "Start with a small test batch.",
+                  ],
+                  "tip": "Track every expense from day one.",
+                  "warning": "Not every product or trend will be profitable.",
+                  "takeaway": "Careful planning matters more than fast scaling.",
+              },
+              {
+                  "title": "\U0001F455 Exploring Print-on-Demand Business",
+                  "image_keywords": "tshirt design,printing,ecommerce",
+                  "fallback_seed": "earnsmart-print-on-demand",
+                  "intro": "Print-on-demand lets you sell custom designs without holding inventory.",
+                  "who": ["Designers", "Hobbyists", "Small business owners"],
+                  "steps": [
+                      "Create simple, original designs.",
+                      "Choose a reliable print-on-demand platform.",
+                      "List a small set of products.",
+                      "Promote to a specific audience.",
+                  ],
+                  "tip": "A focused niche design often sells better than generic designs.",
+                  "warning": "Avoid using copyrighted images or logos in your designs.",
+                  "takeaway": "Original designs and a clear niche matter most.",
+              },
+              {
+                  "title": "\U0001F4C4 Offering Resume Writing Services",
+                  "image_keywords": "resume,document,laptop",
+                  "fallback_seed": "earnsmart-resume-writing",
+                  "intro": "Many job seekers need help creating clear, professional resumes.",
+                  "who": ["HR professionals", "Writers", "Career coaches"],
+                  "steps": [
+                      "Learn resume formatting basics.",
+                      "Create 2-3 sample resumes.",
+                      "Offer services to friends first.",
+                      "Collect feedback and testimonials.",
+                  ],
+                  "tip": "A clean, simple format usually works better than a flashy one.",
+                  "warning": "Never copy someone else's resume content directly.",
+                  "takeaway": "Clarity and honesty make the strongest resumes.",
+              },
+              {
+                  "title": "\U0001F5E3\uFE0F Earning Through Translation Services",
+                  "image_keywords": "translation,language,book",
+                  "fallback_seed": "earnsmart-translation",
+                  "intro": "If you're fluent in two or more languages, translation work can be a genuine income source.",
+                  "who": ["Bilingual speakers", "Students", "Language graduates"],
+                  "steps": [
+                      "List the languages you're fluent in.",
+                      "Practice with sample documents.",
+                      "Apply on verified translation platforms.",
+                      "Start with s
