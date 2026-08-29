@@ -13,430 +13,388 @@ permissions:
 jobs:
   post-to-telegram:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      CHAT_ID: ${{ secrets.CHAT_ID }}
 
     steps:
-      - name: Test and publish to Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: "@LegitEarnIndia"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
 
+      - name: Generate and publish daily post
+        shell: bash
         run: |
-          cat > telegram_test.py <<'PY'
+          set -Eeuo pipefail
+
+          python <<'PY'
           import os
           import sys
           import json
-          import urllib.request
-          import urllib.error
-          import uuid
+          import time
+          import html
+          import random
+          import hashlib
+          from datetime import datetime, timezone
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urlencode
 
-          TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-          CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+          # ============================================================
+          # CONFIGURATION
+          # ============================================================
 
-          print("=" * 60)
-          print("EarnSmart India - Telegram Diagnostic")
-          print("=" * 60)
+          BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+          CHAT_ID = os.environ.get("CHAT_ID", "").strip()
 
-          if not TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN is missing.")
+          TELEGRAM_API = "https://api.telegram.org/bot{}".format(BOT_TOKEN)
+
+          MAX_CAPTION_LENGTH = 1024
+          IMAGE_TIMEOUT = 30
+          TELEGRAM_TIMEOUT = 45
+
+          # Fallback image.
+          # This is downloaded and uploaded to Telegram rather than
+          # asking Telegram to fetch the URL itself.
+          FALLBACK_IMAGE = (
+              "https://images.unsplash.com/"
+              "photo-1556761175-b413da4baf72"
+              "?auto=format&fit=crop&w=1280&q=85"
+          )
+
+          USER_AGENT = (
+              "Mozilla/5.0 (X11; Linux x86_64) "
+              "AppleWebKit/537.36 "
+              "Chrome/131.0 Safari/537.36"
+          )
+
+          # ============================================================
+          # VALIDATE SECRETS
+          # ============================================================
+
+          if not BOT_TOKEN:
+              print("ERROR: BOT_TOKEN secret is missing.")
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: TELEGRAM_CHAT_ID is missing.")
+              print("ERROR: CHAT_ID secret is missing.")
               sys.exit(1)
 
-          print("Bot token: FOUND")
-          print("Chat ID:", CHAT_ID)
+          # ============================================================
+          # 40 TOPIC LIBRARY
+          # ============================================================
 
-          # ------------------------------------------------------------
-          # Telegram API helper
-          # ------------------------------------------------------------
-
-          def api_call(method, payload=None):
-
-              url = f"https://api.telegram.org/bot{TOKEN}/{method}"
-
-              try:
-                  if payload is None:
-                      request = urllib.request.Request(
-                          url,
-                          method="GET"
-                      )
-                  else:
-                      data = json.dumps(payload).encode("utf-8")
-
-                      request = urllib.request.Request(
-                          url,
-                          data=data,
-                          method="POST",
-                          headers={
-                              "Content-Type": "application/json"
-                          }
-                      )
-
-                  with urllib.request.urlopen(
-                      request,
-                      timeout=60
-                  ) as response:
-
-                      raw = response.read().decode(
-                          "utf-8",
-                          errors="replace"
-                      )
-
-                      result = json.loads(raw)
-
-                      print(json.dumps(
-                          result,
-                          indent=2,
-                          ensure_ascii=False
-                      ))
-
-                      return result
-
-              except urllib.error.HTTPError as error:
-
-                  body = error.read().decode(
-                      "utf-8",
-                      errors="replace"
-                  )
-
-                  print("HTTP ERROR:", error.code)
-                  print(body)
-
-                  try:
-                      return json.loads(body)
-                  except Exception:
-                      return {
-                          "ok": False,
-                          "description": body
-                      }
-
-              except Exception as error:
-
-                  print("REQUEST ERROR:", repr(error))
-
-                  return {
-                      "ok": False,
-                      "description": str(error)
-                  }
-
-          # ------------------------------------------------------------
-          # STEP 1 - Check bot
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 1 - CHECKING BOT")
-          print("=" * 60)
-
-          result = api_call("getMe")
-
-          if not result.get("ok"):
-              print("ERROR: Bot token is invalid.")
-              sys.exit(1)
-
-          bot = result["result"]
-
-          print("SUCCESS")
-          print("Bot ID:", bot.get("id"))
-          print("Bot username:", bot.get("username"))
-          print("Bot name:", bot.get("first_name"))
-
-          # ------------------------------------------------------------
-          # STEP 2 - Check channel
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 2 - CHECKING CHANNEL")
-          print("=" * 60)
-
-          result = api_call(
-              "getChat",
+          POSTS = [
               {
-                  "chat_id": CHAT_ID
-              }
-          )
-
-          if not result.get("ok"):
-              print()
-              print("ERROR: Cannot access the Telegram channel.")
-              print("Telegram says:")
-              print(result.get("description"))
-              sys.exit(1)
-
-          chat = result["result"]
-
-          print("SUCCESS")
-          print("Channel ID:", chat.get("id"))
-          print("Channel title:", chat.get("title"))
-          print("Channel username:", chat.get("username"))
-          print("Channel type:", chat.get("type"))
-
-          # ------------------------------------------------------------
-          # STEP 3 - Check bot administrator status
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 3 - CHECKING BOT ADMIN STATUS")
-          print("=" * 60)
-
-          result = api_call(
-              "getChatMember",
+                  "title": "💻 Freelancing: Start With One Valuable Skill",
+                  "intro": "Freelancing can become a legitimate income source when you build a useful skill and consistently deliver quality work.",
+                  "points": [
+                      "Choose one service such as writing, design, video editing or web development.",
+                      "Create 3–5 sample projects.",
+                      "Start with realistic projects instead of chasing instant money.",
+                      "Communicate clearly and meet deadlines.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1280&q=85",
+              },
               {
-                  "chat_id": CHAT_ID,
-                  "user_id": bot["id"]
-              }
-          )
-
-          if not result.get("ok"):
-              print("ERROR: Cannot check bot membership.")
-              print(result.get("description"))
-              sys.exit(1)
-
-          member = result["result"]
-          status = member.get("status")
-
-          print("Bot status:", status)
-
-          if status != "administrator":
-
-              print()
-              print("ERROR: BOT IS NOT ADMINISTRATOR.")
-              print()
-              print("Open Telegram:")
-              print("Channel -> Edit -> Administrators")
-              print("Add this bot as administrator.")
-              sys.exit(1)
-
-          print("SUCCESS: Bot is administrator.")
-
-          # ------------------------------------------------------------
-          # STEP 4 - Send test text
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 4 - SENDING TEST MESSAGE")
-          print("=" * 60)
-
-          result = api_call(
-              "sendMessage",
+                  "title": "🌐 Website: Build a Long-Term Online Asset",
+                  "intro": "A useful website can gradually become an online asset when it solves a real problem for visitors.",
+                  "points": [
+                      "Choose one focused topic.",
+                      "Publish genuinely useful articles and tools.",
+                      "Learn basic SEO.",
+                      "Build traffic gradually.",
+                      "Explore legitimate advertising and affiliate opportunities.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1280&q=85",
+              },
               {
-                  "chat_id": CHAT_ID,
-                  "text": "🧪 EarnSmart India Telegram test message\n\nConnection is working.",
-                  "parse_mode": "HTML"
-              }
-          )
-
-          if not result.get("ok"):
-
-              print()
-              print("ERROR: Telegram rejected the message.")
-              print("Reason:", result.get("description"))
-              sys.exit(1)
-
-          message_id = result["result"].get("message_id")
-
-          print()
-          print("SUCCESS!")
-          print("Test message ID:", message_id)
-
-          # ------------------------------------------------------------
-          # STEP 5 - Download test image
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 5 - DOWNLOADING TEST IMAGE")
-          print("=" * 60)
-
-          image_url = "https://picsum.photos/1200/800"
-
-          image_path = "/tmp/earnsmart-test.jpg"
-
-          request = urllib.request.Request(
-              image_url,
-              headers={
-                  "User-Agent": "EarnSmartIndiaBot/1.0"
-              }
-          )
-
-          try:
-
-              with urllib.request.urlopen(
-                  request,
-                  timeout=60
-              ) as response:
-
-                  image_data = response.read()
-
-              if len(image_data) < 1000:
-                  print("ERROR: Image is too small.")
-                  sys.exit(1)
-
-              with open(image_path, "wb") as image_file:
-                  image_file.write(image_data)
-
-              print(
-                  "Image downloaded:",
-                  len(image_data),
-                  "bytes"
-              )
-
-          except Exception as error:
-
-              print("ERROR downloading image:")
-              print(repr(error))
-              sys.exit(1)
-
-          # ------------------------------------------------------------
-          # STEP 6 - Send photo
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 60)
-          print("STEP 6 - SENDING PHOTO")
-          print("=" * 60)
-
-          boundary = "----EarnSmartIndia" + uuid.uuid4().hex
-
-          with open(image_path, "rb") as image_file:
-              image_data = image_file.read()
-
-          body = bytearray()
-
-          def add_field(name, value):
-
-              body.extend(
-                  (
-                      f"--{boundary}\r\n"
-                      f'Content-Disposition: form-data; name="{name}"\r\n'
-                      "\r\n"
-                      f"{value}\r\n"
-                  ).encode("utf-8")
-              )
-
-          def add_file(name, filename, content):
-
-              body.extend(
-                  (
-                      f"--{boundary}\r\n"
-                      f'Content-Disposition: form-data; name="{name}"; '
-                      f'filename="{filename}"\r\n'
-                      "Content-Type: image/jpeg\r\n"
-                      "\r\n"
-                  ).encode("utf-8")
-              )
-
-              body.extend(content)
-              body.extend(b"\r\n")
-
-          add_field("chat_id", CHAT_ID)
-
-          add_field(
-              "caption",
-              "<b>💰 EarnSmart India</b>\n\n"
-              "Daily earning test post.\n\n"
-              "#EarnSmartIndia"
-          )
-
-          add_field("parse_mode", "HTML")
-
-          add_file(
-              "photo",
-              "earnsmart-test.jpg",
-              image_data
-          )
-
-          body.extend(
-              f"--{boundary}--\r\n".encode("utf-8")
-          )
-
-          photo_url = (
-              f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-          )
-
-          request = urllib.request.Request(
-              photo_url,
-              data=bytes(body),
-              method="POST",
-              headers={
-                  "Content-Type":
-                      f"multipart/form-data; boundary={boundary}",
-                  "User-Agent":
-                      "EarnSmartIndiaBot/1.0"
-              }
-          )
-
-          try:
-
-              with urllib.request.urlopen(
-                  request,
-                  timeout=90
-              ) as response:
-
-                  raw = response.read().decode(
-                      "utf-8",
-                      errors="replace"
-                  )
-
-              result = json.loads(raw)
-
-              print(
-                  json.dumps(
-                      result,
-                      indent=2,
-                      ensure_ascii=False
-                  )
-              )
-
-          except urllib.error.HTTPError as error:
-
-              error_body = error.read().decode(
-                  "utf-8",
-                  errors="replace"
-              )
-
-              print()
-              print("TELEGRAM HTTP ERROR:", error.code)
-              print(error_body)
-              sys.exit(1)
-
-          except Exception as error:
-
-              print()
-              print("PHOTO REQUEST ERROR:")
-              print(repr(error))
-              sys.exit(1)
-
-          if not result.get("ok"):
-
-              print()
-              print("ERROR: Telegram rejected the photo.")
-              print("Error code:", result.get("error_code"))
-              print("Description:", result.get("description"))
-              sys.exit(1)
-
-          print()
-          print("=" * 60)
-          print("🎉 SUCCESS - PHOTO POSTED TO TELEGRAM")
-          print("=" * 60)
-
-          print(
-              "Photo message ID:",
-              result["result"].get("message_id")
-          )
-          PY
-
-          echo "Checking Python syntax..."
-
-          python -m py_compile telegram_test.py
-
-          echo "Python syntax: OK"
-
-          echo
-          echo "Running Telegram diagnostic..."
-
-          python telegram_test.py
+                  "title": "📱 YouTube: Build Around Useful Content",
+                  "intro": "YouTube can become a long-term opportunity when your videos consistently help or entertain a specific audience.",
+                  "points": [
+                      "Choose a focused niche.",
+                      "Create useful original videos.",
+                      "Improve thumbnails and titles.",
+                      "Study audience retention.",
+                      "Stay consistent instead of expecting instant income.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "✍️ Content Writing: Turn Research Into Value",
+                  "intro": "Good content writing is more than typing. It requires research, structure, accuracy and clear communication.",
+                  "points": [
+                      "Learn headline writing.",
+                      "Practice research and fact checking.",
+                      "Create writing samples.",
+                      "Learn basic SEO.",
+                      "Target legitimate clients and publications.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🎨 Graphic Design: Build a Portfolio",
+                  "intro": "Design skills can be sold as services when you can demonstrate practical results.",
+                  "points": [
+                      "Learn layout and typography.",
+                      "Practice social media graphics.",
+                      "Create sample brand designs.",
+                      "Build a simple portfolio.",
+                      "Approach legitimate clients.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🎬 Video Editing: A Practical Digital Skill",
+                  "intro": "Video editing is useful for creators, businesses and online educators.",
+                  "points": [
+                      "Learn cutting and pacing.",
+                      "Practice subtitles and transitions.",
+                      "Create short sample videos.",
+                      "Build a portfolio.",
+                      "Offer clear service packages.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🤖 AI Tools: Learn to Use Them Productively",
+                  "intro": "AI tools can improve productivity, but useful income still depends on skills, judgment and delivering real value.",
+                  "points": [
+                      "Learn prompting and verification.",
+                      "Use AI to speed up repetitive tasks.",
+                      "Always check generated information.",
+                      "Combine AI with a real professional skill.",
+                      "Never sell copied or misleading work.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🧑‍💻 Web Development: Build Practical Projects",
+                  "intro": "Web development remains a useful skill because businesses need websites, applications and digital tools.",
+                  "points": [
+                      "Learn HTML, CSS and JavaScript.",
+                      "Build small real projects.",
+                      "Learn responsive design.",
+                      "Create a portfolio.",
+                      "Progress toward advanced frameworks.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📊 Data Skills: Learn Before You Sell",
+                  "intro": "Spreadsheet and data skills can support business operations and freelance work.",
+                  "points": [
+                      "Master spreadsheet basics.",
+                      "Learn formulas and data cleaning.",
+                      "Practice charts and dashboards.",
+                      "Learn basic SQL.",
+                      "Create sample projects.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🛒 Online Selling: Start Small",
+                  "intro": "Online selling can work when you have a useful product, reliable fulfilment and realistic margins.",
+                  "points": [
+                      "Research demand first.",
+                      "Calculate all costs.",
+                      "Use clear product information.",
+                      "Provide reliable customer support.",
+                      "Avoid unrealistic profit claims.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📚 Online Tutoring: Monetize What You Know",
+                  "intro": "Teaching can become a legitimate service when you have knowledge that students actually need.",
+                  "points": [
+                      "Choose a subject you understand.",
+                      "Prepare structured lessons.",
+                      "Offer sample explanations.",
+                      "Build trust through results.",
+                      "Use legitimate payment methods.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🏠 Remote Work: Find Legitimate Jobs",
+                  "intro": "Remote employment can provide legitimate income when you have the required skills and find genuine employers.",
+                  "points": [
+                      "Prepare a professional CV.",
+                      "Create a portfolio where relevant.",
+                      "Apply through legitimate company websites or platforms.",
+                      "Research the employer.",
+                      "Never pay for a guaranteed job.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🧑‍💼 Virtual Assistance: Help Businesses Remotely",
+                  "intro": "Virtual assistants can support businesses with administrative and online tasks.",
+                  "points": [
+                      "Learn email and calendar management.",
+                      "Practice spreadsheets.",
+                      "Learn basic customer communication.",
+                      "Create service packages.",
+                      "Keep client information confidential.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📣 Social Media Management",
+                  "intro": "Businesses often need help planning, creating and managing social media content.",
+                  "points": [
+                      "Learn content planning.",
+                      "Understand basic analytics.",
+                      "Create sample calendars.",
+                      "Learn platform-specific formats.",
+                      "Focus on measurable business value.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🔍 SEO: Learn How Search Works",
+                  "intro": "SEO is a long-term skill focused on helping useful content become easier for search engines and people to discover.",
+                  "points": [
+                      "Learn search intent.",
+                      "Write useful titles.",
+                      "Improve site structure.",
+                      "Create genuinely valuable content.",
+                      "Avoid spammy shortcuts.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📰 Blogging: Build Trust Before Revenue",
+                  "intro": "A blog usually takes time to grow, so focus first on useful content and audience trust.",
+                  "points": [
+                      "Choose one clear niche.",
+                      "Publish consistently.",
+                      "Research topics carefully.",
+                      "Improve SEO over time.",
+                      "Monetize only after building useful traffic.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "💼 LinkedIn: Build a Professional Presence",
+                  "intro": "A strong professional profile can help you discover jobs, clients and networking opportunities.",
+                  "points": [
+                      "Use a clear professional headline.",
+                      "Show relevant skills.",
+                      "Add project examples.",
+                      "Share useful knowledge.",
+                      "Connect with relevant professionals.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📸 Photography: Sell a Real Skill",
+                  "intro": "Photography can become a service when you develop a recognizable style and reliable workflow.",
+                  "points": [
+                      "Practice composition.",
+                      "Learn basic editing.",
+                      "Build a portfolio.",
+                      "Choose a service niche.",
+                      "Price based on costs and value.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🎙️ Podcasting: Grow an Audience Slowly",
+                  "intro": "Podcasting is an audience-building activity first. Monetization normally comes later.",
+                  "points": [
+                      "Choose a focused topic.",
+                      "Plan episodes carefully.",
+                      "Prioritize audio quality.",
+                      "Publish consistently.",
+                      "Build trust with useful discussions.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "📱 App Development: Solve a Real Problem",
+                  "intro": "Apps have better long-term potential when they solve a specific problem instead of simply copying trends.",
+                  "points": [
+                      "Identify a real user problem.",
+                      "Build a simple prototype.",
+                      "Test with users.",
+                      "Improve based on feedback.",
+                      "Use ethical monetization.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🧾 Resume Services: Improve Professional Documents",
+                  "intro": "Resume editing can be a useful service if you understand clear writing, formatting and truthful presentation.",
+                  "points": [
+                      "Learn professional formatting.",
+                      "Focus on measurable achievements.",
+                      "Avoid false claims.",
+                      "Create sample resumes.",
+                      "Protect client information.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "⌨️ Transcription: Build Accuracy",
+                  "intro": "Transcription work requires strong listening, typing accuracy and attention to detail.",
+                  "points": [
+                      "Practice typing.",
+                      "Improve listening accuracy.",
+                      "Learn timestamping.",
+                      "Understand formatting requirements.",
+                      "Use legitimate work platforms.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🌍 Translation: Language Skills Can Help",
+                  "intro": "Translation can be valuable when you understand both languages and the subject matter.",
+                  "points": [
+                      "Develop strong language skills.",
+                      "Practice natural translation.",
+                      "Learn terminology.",
+                      "Build samples.",
+                      "Review every translation before delivery.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🎧 Customer Support: A Remote Skill",
+                  "intro": "Customer support roles can be available remotely when you have communication and problem-solving skills.",
+                  "points": [
+                      "Improve written communication.",
+                      "Learn professional etiquette.",
+                      "Practice problem solving.",
+                      "Understand ticket systems.",
+                      "Apply through legitimate employers.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🧮 Excel Skills: Start With Practical Tasks",
+                  "intro": "Spreadsheet skills are useful across many industries and can support freelance work.",
+                  "points": [
+                      "Learn formulas.",
+                      "Use sorting and filtering.",
+                      "Create clean tables.",
+                      "Build simple dashboards.",
+                      "Practice with real-world datasets.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1280&q=85",
+              },
+              {
+                  "title": "🖥️ WordPress: Build Useful Websites",
+                  "intro": "WordPress can help you build websites without starting every project completely from scratch.",
+                  "points": [
+                      "Learn themes and plugins.",
+                      "Understand basic SEO.",
+                      "Practice website security.",
+                      "Build demonstration websites.",
+                      "Offer maintenance services.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=cr
