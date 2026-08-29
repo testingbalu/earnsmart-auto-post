@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -35,35 +35,61 @@ jobs:
           import os
           import sys
           import time
-          import html
           import json
+          import html
+          import random
           import urllib.request
           import urllib.error
           import urllib.parse
-          from datetime import datetime, timezone
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
 
 
           # ============================================================
           # CONFIGURATION
           # ============================================================
 
-          BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-          CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+          BOT_TOKEN = os.environ.get(
+              "TELEGRAM_BOT_TOKEN",
+              ""
+          ).strip()
+
+          CHAT_ID = os.environ.get(
+              "TELEGRAM_CHAT_ID",
+              ""
+          ).strip()
+
+          TELEGRAM_API = (
+              f"https://api.telegram.org/bot{BOT_TOKEN}"
+          )
+
+          TELEGRAM_TIMEOUT = 45
+          IMAGE_TIMEOUT = 45
+          RETRIES = 3
+
+          # Telegram photo caption maximum is 1024 characters.
+          MAX_CAPTION_LENGTH = 1024
+
+          INDIA_TZ = ZoneInfo("Asia/Kolkata")
+
+          IMAGE_PATH = "/tmp/earnsmart_daily.jpg"
+
+
+          # ============================================================
+          # SECRET VALIDATION
+          # ============================================================
 
           if not BOT_TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
+              print(
+                  "ERROR: TELEGRAM_BOT_TOKEN secret is missing."
+              )
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: TELEGRAM_CHAT_ID secret is missing.")
+              print(
+                  "ERROR: TELEGRAM_CHAT_ID secret is missing."
+              )
               sys.exit(1)
-
-          TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-
-          MAX_CAPTION_LENGTH = 1024
-          DOWNLOAD_TIMEOUT = 30
-          TELEGRAM_TIMEOUT = 45
-          TELEGRAM_RETRIES = 3
 
 
           # ============================================================
@@ -73,74 +99,51 @@ jobs:
           TOPICS = [
               {
                   "title": "Remote Work: Find Legitimate Online Jobs",
-                  "intro": (
-                      "Remote work can provide legitimate income when you "
-                      "have useful skills and choose genuine employers."
-                  ),
+                  "intro": "Remote work can provide legitimate income when you have useful skills and choose genuine employers.",
                   "areas": [
                       "Customer support",
                       "Virtual assistance",
-                      "Data-related work",
+                      "Data work",
                       "Software development",
                       "Design",
-                      "Sales",
-                      "Content work",
                   ],
                   "steps": [
                       "Prepare a professional CV.",
                       "Create a portfolio where relevant.",
-                      "Apply through legitimate company websites or platforms.",
-                      "Research the employer before sharing sensitive information.",
+                      "Apply through legitimate employers.",
+                      "Research the employer.",
                       "Never pay money for a guaranteed job.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1521737711867-e3b97375f902"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Build Multiple Legitimate Income Skills",
-                  "intro": (
-                      "A stronger long-term strategy is to build useful "
-                      "skills instead of searching for instant-money schemes."
-                  ),
+                  "intro": "Building useful skills is a stronger long-term strategy than chasing instant-money schemes.",
                   "areas": [
                       "Freelancing",
                       "Content creation",
                       "Websites",
                       "Digital services",
                       "Online selling",
-                      "Remote employment",
                   ],
                   "steps": [
-                      "Learn one useful skill first.",
+                      "Learn one useful skill.",
                       "Get practical experience.",
                       "Build proof of your work.",
                       "Find legitimate opportunities.",
-                      "Gradually add another complementary skill.",
+                      "Add complementary skills gradually.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1556761175-b413da4baf72"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Start Freelancing With One Skill",
-                  "intro": (
-                      "You do not need ten skills to start freelancing. "
-                      "Choose one service and become useful at it."
-                  ),
+                  "intro": "You do not need ten skills to start freelancing. Choose one service and become useful at it.",
                   "areas": [
                       "Writing",
                       "Graphic design",
                       "Video editing",
                       "Web development",
                       "Data entry",
-                      "Virtual assistance",
                   ],
                   "steps": [
                       "Choose one service.",
@@ -149,54 +152,36 @@ jobs:
                       "Start with realistic projects.",
                       "Collect genuine client feedback.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1553877522-43269d4ea984"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Learn Digital Marketing Skills",
-                  "intro": (
-                      "Digital marketing can become a useful career or "
-                      "freelance skill when learned through practical work."
-                  ),
+                  "intro": "Digital marketing can become a useful career or freelance skill when learned through practical work.",
                   "areas": [
                       "SEO",
                       "Social media",
                       "Content marketing",
                       "Email marketing",
                       "Analytics",
-                      "Advertising",
                   ],
                   "steps": [
                       "Learn the fundamentals.",
                       "Practice on a small project.",
                       "Track measurable results.",
                       "Build case studies.",
-                      "Offer services only after developing real ability.",
+                      "Develop real ability before selling services.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1460925895917-afdab827c52f"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Earn Through Website Skills",
-                  "intro": (
-                      "Website development is a practical skill that can "
-                      "lead to freelance projects and remote opportunities."
-                  ),
+                  "intro": "Website development is a practical skill that can lead to freelance projects and remote opportunities.",
                   "areas": [
                       "WordPress",
                       "HTML",
                       "CSS",
                       "JavaScript",
                       "Website maintenance",
-                      "Landing pages",
                   ],
                   "steps": [
                       "Learn the basics.",
@@ -205,22 +190,13 @@ jobs:
                       "Understand hosting and domains.",
                       "Look for legitimate clients.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1498050108023-c5249f4df085"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Create a Professional Freelance Portfolio",
-                  "intro": (
-                      "A portfolio gives potential clients evidence of what "
-                      "you can actually do."
-                  ),
+                  "intro": "A portfolio gives potential clients evidence of what you can actually do.",
                   "areas": [
                       "Project samples",
-                      "Before-and-after examples",
                       "Case studies",
                       "Client results",
                       "Skills",
@@ -228,81 +204,54 @@ jobs:
                   ],
                   "steps": [
                       "Choose your strongest work.",
-                      "Explain what you personally created.",
+                      "Explain what you created.",
                       "Show measurable results when possible.",
                       "Keep the design simple.",
                       "Update it regularly.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1461749280684-dccba630e2f6"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Learn Video Editing for Online Work",
-                  "intro": (
-                      "Short-form video has created opportunities for "
-                      "editors who can consistently produce useful content."
-                  ),
+                  "intro": "Short-form video has created opportunities for editors who can consistently produce useful content.",
                   "areas": [
                       "Short videos",
                       "YouTube editing",
                       "Captions",
                       "Thumbnails",
                       "Reels",
-                      "Promotional videos",
                   ],
                   "steps": [
                       "Learn one editing application.",
                       "Practice with sample footage.",
-                      "Create five portfolio samples.",
-                      "Learn basic audio and captions.",
+                      "Create portfolio samples.",
+                      "Learn audio and captions.",
                       "Approach legitimate clients.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1574717024653-61fd2cf4d44d"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Start Content Creation the Smart Way",
-                  "intro": (
-                      "Content creation is a long-term activity. Focus on "
-                      "providing useful information rather than chasing viral "
-                      "views alone."
-                  ),
+                  "intro": "Content creation is a long-term activity. Focus on useful information instead of chasing viral views alone.",
                   "areas": [
                       "Educational content",
                       "Short videos",
                       "Blogs",
-                      "News commentary",
                       "Tutorials",
                       "Reviews",
                   ],
                   "steps": [
                       "Choose a clear niche.",
                       "Create consistently.",
-                      "Verify information before publishing.",
+                      "Verify information.",
                       "Improve titles and presentation.",
                       "Build trust before monetization.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1492724441997-5dc865305da7"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Improve Your Online Job Search",
-                  "intro": (
-                      "Applying to random jobs wastes time. A targeted "
-                      "application strategy can improve your chances."
-                  ),
+                  "intro": "A targeted application strategy can save time and improve your chances of finding suitable work.",
                   "areas": [
                       "CV optimization",
                       "Job alerts",
@@ -313,23 +262,15 @@ jobs:
                   "steps": [
                       "Target roles matching your skills.",
                       "Customize your CV.",
-                      "Prepare a short professional introduction.",
+                      "Prepare a professional introduction.",
                       "Research the company.",
-                      "Track applications and follow-ups.",
+                      "Track applications.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1521791136064-7986c2920216"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Learn Excel for Better Job Opportunities",
-                  "intro": (
-                      "Spreadsheet skills are useful across administration, "
-                      "finance, operations, sales and data-related roles."
-                  ),
+                  "intro": "Spreadsheet skills are useful across administration, finance, operations, sales and data-related roles.",
                   "areas": [
                       "Formulas",
                       "Sorting and filtering",
@@ -339,52 +280,35 @@ jobs:
                   ],
                   "steps": [
                       "Learn basic formulas.",
-                      "Practice with real-looking datasets.",
+                      "Practice with datasets.",
                       "Learn lookup functions.",
-                      "Create simple dashboards.",
-                      "Add your projects to your portfolio.",
+                      "Create dashboards.",
+                      "Add projects to your portfolio.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1551288049-bebda4e38f71"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Build a Professional LinkedIn Profile",
-                  "intro": (
-                      "A professional online profile can make it easier for "
-                      "recruiters and potential clients to understand your skills."
-                  ),
+                  "intro": "A professional online profile can help recruiters and clients understand your actual skills.",
                   "areas": [
                       "Professional headline",
                       "About section",
                       "Skills",
                       "Projects",
                       "Experience",
-                      "Portfolio",
                   ],
                   "steps": [
-                      "Use a professional profile photo.",
+                      "Use a professional photo.",
                       "Write a clear headline.",
-                      "Describe your actual skills.",
+                      "Describe your real skills.",
                       "Add relevant projects.",
                       "Keep the profile updated.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1611944212129-29977ae1398c"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1611944212129-29977ae1398c?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Avoid Online Job Scams",
-                  "intro": (
-                      "Many fake job offers use promises of guaranteed income "
-                      "to pressure people into paying money."
-                  ),
+                  "intro": "Fake job offers often use guaranteed-income promises to pressure people into paying money.",
                   "areas": [
                       "Fake recruitment fees",
                       "Deposit requests",
@@ -396,130 +320,154 @@ jobs:
                       "Research the employer.",
                       "Check the official company website.",
                       "Never pay for a guaranteed job.",
-                      "Do not share OTPs or passwords.",
-                      "Be suspicious of unrealistic income claims.",
+                      "Never share OTPs or passwords.",
+                      "Be suspicious of unrealistic claims.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1563013544-824ae1b704d3"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Learn Graphic Design as a Freelance Skill",
-                  "intro": (
-                      "Graphic design can be monetized through legitimate "
-                      "client projects when you develop a strong portfolio."
-                  ),
+                  "intro": "Graphic design can be monetized through legitimate client projects when you develop a strong portfolio.",
                   "areas": [
                       "Social media graphics",
                       "Posters",
                       "Logos",
                       "Presentations",
                       "Thumbnails",
-                      "Marketing materials",
                   ],
                   "steps": [
                       "Learn design fundamentals.",
                       "Practice typography and layout.",
                       "Create sample designs.",
                       "Build a portfolio.",
-                      "Start with realistic client expectations.",
+                      "Start with realistic expectations.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1561070791-2526d30994b5"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Start a Small Online Service",
-                  "intro": (
-                      "A small digital service can be easier to test than "
-                      "trying to build a large business immediately."
-                  ),
+                  "intro": "A small digital service can be easier to test than trying to build a large business immediately.",
                   "areas": [
                       "Website setup",
                       "Social media management",
                       "Editing",
                       "Writing",
                       "Design",
-                      "Virtual assistance",
                   ],
                   "steps": [
                       "Choose one specific service.",
                       "Define exactly what you deliver.",
                       "Create examples.",
                       "Find suitable customers.",
-                      "Improve the service using feedback.",
+                      "Improve using feedback.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1556742049-0cfed4f6a45d"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Use AI Tools to Improve Productivity",
-                  "intro": (
-                      "AI tools can help with research, drafting, coding and "
-                      "organization, but human verification remains important."
-                  ),
+                  "intro": "AI tools can help with research, drafting, coding and organization, but important information still needs verification.",
                   "areas": [
                       "Writing assistance",
                       "Research",
                       "Coding",
                       "Planning",
                       "Data organization",
-                      "Content workflows",
                   ],
                   "steps": [
                       "Learn one tool properly.",
                       "Use it for repetitive tasks.",
                       "Verify important information.",
                       "Protect confidential information.",
-                      "Measure whether it actually saves time.",
+                      "Measure whether it saves time.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1677442136019-21780ecad995"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Learn Basic Coding for Online Opportunities",
-                  "intro": (
-                      "Coding can open opportunities in websites, automation, "
-                      "software and technical freelancing."
-                  ),
+                  "intro": "Coding can open opportunities in websites, automation, software and technical freelancing.",
                   "areas": [
                       "Python",
                       "JavaScript",
                       "HTML",
                       "CSS",
                       "APIs",
-                      "Automation",
                   ],
                   "steps": [
                       "Choose one beginner-friendly language.",
-                      "Practice every day.",
+                      "Practice regularly.",
                       "Build small projects.",
                       "Publish your work.",
-                      "Learn how to solve real problems.",
+                      "Solve real problems.",
                   ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1515879218367-8466d910aaa4"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85",
               },
-
               {
                   "title": "Build Simple Automation Skills",
-                  "intro": (
-                      "Automation can reduce repetitive work and is useful "
-                      "for websites
+                  "intro": "Automation can reduce repetitive work and is useful for websites, business workflows and data processing.",
+                  "areas": [
+                      "Python scripts",
+                      "APIs",
+                      "GitHub Actions",
+                      "Webhooks",
+                      "Data processing",
+                  ],
+                  "steps": [
+                      "Identify a repetitive task.",
+                      "Learn the relevant tool.",
+                      "Build a small automation.",
+                      "Test it carefully.",
+                      "Document how it works.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Create and Sell Digital Products",
+                  "intro": "Digital products can include templates, guides, design assets and educational resources.",
+                  "areas": [
+                      "Templates",
+                      "Checklists",
+                      "E-books",
+                      "Design assets",
+                      "Spreadsheets",
+                  ],
+                  "steps": [
+                      "Find a genuine problem.",
+                      "Create a useful solution.",
+                      "Test it with users.",
+                      "Improve the product.",
+                      "Use legitimate sales channels.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Start Learning SEO",
+                  "intro": "Search engine optimization helps websites become more discoverable through useful and relevant content.",
+                  "areas": [
+                      "Keyword research",
+                      "Content quality",
+                      "Technical SEO",
+                      "Internal linking",
+                      "Page speed",
+                  ],
+                  "steps": [
+                      "Understand search intent.",
+                      "Create useful content.",
+                      "Learn technical SEO basics.",
+                      "Study analytics.",
+                      "Avoid spammy shortcuts.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Make Your CV More Effective",
+                  "intro": "A good CV should quickly communicate your relevant skills, experience and achievements.",
+                  "areas": [
+                      "Relevant skills",
+                      "Work experience",
+                      "Projects",
+                      "Achievements",
+                      "Education",
+                  ],
+                  "steps": [
+                      "Keep the layout clean.",
+                      
