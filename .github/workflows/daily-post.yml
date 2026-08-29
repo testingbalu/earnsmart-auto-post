@@ -15,20 +15,18 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
-
         run: |
           python - <<'PY'
           import os
+          import json
           import urllib.parse
           import urllib.request
-          import json
           from datetime import datetime
           from zoneinfo import ZoneInfo
 
           TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
           CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-          # India date
           now = datetime.now(ZoneInfo("Asia/Kolkata"))
           date = now.strftime("%d %B %Y")
 
@@ -36,144 +34,58 @@ jobs:
           posts = [
 
               {
-                  "title": "💻 Freelancing: Start With Your Skills",
-                  "body": """Freelancing can be a practical way to earn online if you have a useful skill.
+                  "title": "💻 Freelancing: Start With ONE Skill",
+                  "image": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+🚀 <b>How to start:</b>
 
-🚀 How to start:
-
-1️⃣ Choose one skill — writing, design, video editing, translation, coding, etc.
-2️⃣ Create 2–3 sample projects.
+1️⃣ Choose one useful skill.
+2️⃣ Create 2–3 sample works.
 3️⃣ Build a simple portfolio.
-4️⃣ Find genuine clients.
+4️⃣ Contact genuine clients.
 5️⃣ Start with small projects.
-6️⃣ Collect reviews and improve your rates.
+6️⃣ Collect reviews and improve.
 
-💡 Tip: Don't try to learn 10 skills at once. Become useful at ONE skill first."""
+💡 <b>Tip:</b> Don't try to learn everything at once. Become useful at ONE skill first.
+
+⚠️ Never pay money for a guaranteed freelance job.
+"""
               },
 
               {
-                  "title": "🎓 Online Tutoring",
-                  "body": """If you are good at a subject, online tutoring can become a genuine income source.
+                  "title": "📚 Online Tutoring: Turn Knowledge Into Income",
+                  "image": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+🎓 If you are strong in a subject, online tutoring can become a genuine income source.
 
-📚 You can teach:
+<b>You can teach:</b>
 
 • School subjects
 • English
 • Mathematics
 • Computer basics
 • Programming
-• Competitive-exam subjects
+• Exam preparation
 
-🚀 Start:
+🚀 <b>Start:</b>
 
 1️⃣ Choose your strongest subject.
-2️⃣ Prepare sample lessons.
+2️⃣ Prepare simple lessons.
 3️⃣ Decide your hourly rate.
 4️⃣ Find students through legitimate platforms or your network.
-5️⃣ Build your reputation through good teaching.
+5️⃣ Build trust through good teaching.
 
-⚠️ Never pay a large upfront fee to someone promising guaranteed students."""
+⚠️ Avoid anyone asking for a large upfront fee promising guaranteed students.
+"""
               },
 
               {
-                  "title": "🎥 YouTube: Build Before You Earn",
-                  "body": """YouTube can become an income source, but it usually takes time.
+                  "title": "🏠 Remote Work: Find Real Online Jobs",
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+💼 Remote work allows you to work for legitimate companies without travelling to an office.
 
-💡 Possible content:
-
-• Tutorials
-• Educational videos
-• Reviews
-• News/commentary
-• Skills and how-to guides
-• Local-language content
-
-🚀 Start:
-
-1️⃣ Pick one niche.
-2️⃣ Make useful original videos.
-3️⃣ Upload consistently.
-4️⃣ Improve thumbnails and titles.
-5️⃣ Study what viewers actually watch.
-6️⃣ Monetize only when you meet the platform's requirements.
-
-⚠️ Don't believe anyone promising guaranteed YouTube income."""
-              },
-
-              {
-                  "title": "🔗 Affiliate Marketing",
-                  "body": """Affiliate marketing means recommending products or services and receiving a commission when eligible purchases happen through your referral.
-
-🚀 Basic process:
-
-1️⃣ Choose a genuine affiliate program.
-2️⃣ Choose products relevant to your audience.
-3️⃣ Create useful reviews or tutorials.
-4️⃣ Clearly disclose affiliate relationships.
-5️⃣ Share your referral link responsibly.
-6️⃣ Track which content performs best.
-
-⚠️ Never spam links or make false claims about products.
-
-💡 Focus on helping people make a good decision, not simply getting clicks."""
-              },
-
-              {
-                  "title": "📦 Sell Digital Products",
-                  "body": """Digital products can be created once and sold repeatedly.
-
-💡 Examples:
-
-• Templates
-• E-books
-• Study notes
-• Checklists
-• Design assets
-• Spreadsheet tools
-• Educational resources
-
-🚀 Start:
-
-1️⃣ Find a problem people have.
-2️⃣ Create a useful solution.
-3️⃣ Make the product professional.
-4️⃣ Set a reasonable price.
-5️⃣ Promote it through legitimate channels.
-6️⃣ Improve it using customer feedback.
-
-⚠️ Don't sell copyrighted material or someone else's work as your own."""
-              },
-
-              {
-                  "title": "✍️ Blogging & Content Writing",
-                  "body": """Writing is still a useful online skill.
-
-💻 You can work on:
-
-• Blog articles
-• Product descriptions
-• Website content
-• Social-media posts
-• Technical articles
-• Newsletters
-
-🚀 Start:
-
-1️⃣ Choose a topic you understand.
-2️⃣ Write 2–3 strong samples.
-3️⃣ Create a simple portfolio.
-4️⃣ Contact potential clients.
-5️⃣ Start with manageable projects.
-6️⃣ Build long-term client relationships.
-
-💡 Good writing solves a business problem — it isn't just about writing lots of words."""
-              },
-
-              {
-                  "title": "🏠 Remote Work: Look for Real Jobs",
-                  "body": """Remote jobs can provide legitimate income without requiring you to travel to an office.
-
-💼 Common areas include:
+<b>Common areas:</b>
 
 • Customer support
 • Virtual assistance
@@ -183,24 +95,131 @@ jobs:
 • Sales
 • Content work
 
-🚀 Before applying:
+🔎 <b>Before applying:</b>
 
 1️⃣ Prepare a professional CV.
-2️⃣ Create a good portfolio where relevant.
-3️⃣ Apply through legitimate company/job websites.
-4️⃣ Research the employer.
-5️⃣ Never pay for a job offer.
+2️⃣ Create a portfolio where relevant.
+3️⃣ Research the employer.
+4️⃣ Apply through legitimate channels.
+5️⃣ Never pay for a promised job.
 
-🚨 Scam warning:
-A genuine employer should not demand money simply to give you a job."""
+🚨 <b>Scam warning:</b>
+A genuine employer normally does not demand money simply to give you a job.
+"""
+              },
+
+              {
+                  "title": "✍️ Content Writing: Earn With Your Writing Skill",
+                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+📝 Businesses need articles, blogs, product descriptions and social-media content.
+
+🚀 <b>How to start:</b>
+
+1️⃣ Choose a topic you understand.
+2️⃣ Write 2–3 sample articles.
+3️⃣ Create a simple portfolio.
+4️⃣ Contact genuine clients.
+5️⃣ Start with manageable projects.
+6️⃣ Improve your writing continuously.
+
+💡 Good writing solves a business problem — it isn't just about writing lots of words.
+
+⚠️ Never pay someone because they promise guaranteed writing income.
+"""
+              },
+
+              {
+                  "title": "🎨 Graphic Design: Start Small",
+                  "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+🎨 Graphic design can be useful for businesses, creators and local shops.
+
+<b>Beginner services can include:</b>
+
+• Social-media posts
+• YouTube thumbnails
+• Posters
+• Business flyers
+• Simple logos
+• Presentation designs
+
+🚀 <b>Simple plan:</b>
+
+1️⃣ Learn one design tool.
+2️⃣ Create 5 sample designs.
+3️⃣ Make a portfolio.
+4️⃣ Contact small businesses.
+5️⃣ Start with small projects.
+6️⃣ Build reviews and increase your rates.
+
+💡 Focus on solving the customer's problem rather than simply making something attractive.
+"""
+              },
+
+              {
+                  "title": "📱 Social Media Management: A Beginner Opportunity",
+                  "image": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+📲 Many small businesses need help managing their social-media pages.
+
+<b>You can offer:</b>
+
+• Post creation
+• Caption writing
+• Content calendars
+• Basic page management
+• Comment/reply management
+• Simple analytics reports
+
+🚀 <b>Start:</b>
+
+1️⃣ Learn the basics.
+2️⃣ Create sample posts.
+3️⃣ Choose a business niche.
+4️⃣ Contact local businesses.
+5️⃣ Offer a small trial project.
+6️⃣ Build long-term relationships.
+
+⚠️ Avoid clients who ask you to pay money before giving you work.
+"""
+              },
+
+              {
+                  "title": "🌐 Website Skills: Build a Valuable Online Skill",
+                  "image": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80",
+                  "body": """
+💻 Website skills can create opportunities for freelance and small-business work.
+
+<b>Begin with:</b>
+
+• WordPress
+• Basic HTML/CSS
+• Website editing
+• Landing pages
+• Website maintenance
+• Basic SEO
+
+🚀 <b>Simple roadmap:</b>
+
+1️⃣ Learn one area.
+2️⃣ Build 2–3 demo websites.
+3️⃣ Create a portfolio.
+4️⃣ Find genuine businesses.
+5️⃣ Offer a clearly defined service.
+6️⃣ Improve your skills with every project.
+
+💡 A useful skill + real clients + consistent work is a much safer path than "quick money" schemes.
+"""
               }
           ]
 
-          # Rotate based on day of year
+          # Select today's post
           day_number = now.timetuple().tm_yday
           post = posts[(day_number - 1) % len(posts)]
 
-          message = f"""💰 <b>EarnSmart India — Daily Earning Tip</b>
+          caption = f"""
+💰 <b>EarnSmart India — Daily Earning Tip</b>
 
 📅 {date}
 
@@ -208,37 +227,35 @@ A genuine employer should not demand money simply to give you a job."""
 
 {post["body"]}
 
-⚠️ <b>Remember:</b>
-There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
-
-📲 Follow <b>EarnSmart India</b> for practical online earning tips.
+━━━━━━━━━━━━━━
+🔔 Follow <b>EarnSmart India</b> for practical online earning ideas.
 
 #EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
 """
 
-          url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+          api = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
           data = urllib.parse.urlencode({
               "chat_id": CHAT_ID,
-              "text": message,
-              "parse_mode": "HTML",
-              "disable_web_page_preview": "true"
+              "photo": post["image"],
+              "caption": caption,
+              "parse_mode": "HTML"
           }).encode()
 
           request = urllib.request.Request(
-              url,
+              api,
               data=data,
               method="POST"
           )
 
           try:
-              with urllib.request.urlopen(request, timeout=30) as response:
+              with urllib.request.urlopen(request, timeout=60) as response:
                   result = json.loads(response.read().decode())
 
               if not result.get("ok"):
                   raise RuntimeError(result)
 
-              print("✅ Daily Telegram post published successfully.")
+              print("✅ Daily image post published successfully.")
               print("📅 Date:", date)
               print("📝 Topic:", post["title"])
 
