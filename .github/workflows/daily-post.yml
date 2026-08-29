@@ -1,381 +1,560 @@
-- name: Generate and publish daily post
-  env:
-    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-    TELEGRAM_CHAT_ID: "@LegitEarnIndia"
-
-  run: |
-    python - <<'PY'
-    import os
-    import json
-    import urllib.request
-    import urllib.parse
-    import urllib.error
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-
-    TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-    CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-
-    # India date
-    now = datetime.now(ZoneInfo("Asia/Kolkata"))
-    date = now.strftime("%d %B %Y")
-
-    # -----------------------------------------
-    # DAILY CONTENT
-    # -----------------------------------------
-
-    posts = [
-
-        {
-            "title": "💻 Freelancing: Start With Your Skills",
-            "body": """
-    🚀 <b>How to start:</b>
-
-    1️⃣ Choose one useful skill.
-    2️⃣ Create 2–3 sample works.
-    3️⃣ Build a simple portfolio.
-    4️⃣ Contact genuine clients.
-    5️⃣ Start with small projects.
-    6️⃣ Collect reviews and improve.
-
-    💡 <b>Tip:</b>
-    Don't try to learn everything at once. Become useful at ONE skill first.
-
-    ⚠️ Never pay money for a guaranteed freelance job.
-            """
-        },
-
-        {
-            "title": "🎓 Online Tutoring: Turn Knowledge Into Income",
-            "body": """
-    📚 If you are good at a subject, online tutoring can become a genuine income source.
-
-    <b>You can teach:</b>
-
-    • School subjects
-    • English
-    • Mathematics
-    • Computer basics
-    • Programming
-    • Competitive-exam subjects
-
-    🚀 <b>Start:</b>
-
-    1️⃣ Choose your strongest subject.
-    2️⃣ Prepare simple lessons.
-    3️⃣ Decide your hourly rate.
-    4️⃣ Find students through legitimate channels.
-    5️⃣ Build your reputation through good teaching.
-
-    ⚠️ Avoid anyone promising guaranteed students for an upfront payment.
-            """
-        },
-
-        {
-            "title": "🌐 Website & Blog: Build a Long-Term Asset",
-            "body": """
-    💻 A useful website can become a long-term online asset.
-
-    <b>Possible topics:</b>
-
-    • Technology
-    • Education
-    • Finance basics
-    • Jobs
-    • Tutorials
-    • Local information
-
-    🚀 <b>Basic plan:</b>
-
-    1️⃣ Pick one clear topic.
-    2️⃣ Publish genuinely useful content.
-    3️⃣ Learn basic SEO.
-    4️⃣ Build traffic gradually.
-    5️⃣ Explore legitimate monetization options.
-
-    💡 Don't expect instant income. Traffic and trust take time.
-            """
-        },
-
-        {
-            "title": "📱 Learn a Digital Skill",
-            "body": """
-    🚀 Digital skills can create opportunities for freelance and remote work.
+name: EarnSmart India Daily Post
+
+on:
+  workflow_dispatch:
 
-    <b>Skills worth exploring:</b>
-
-    • Graphic design
-    • Video editing
-    • WordPress
-    • Web development
-    • Content writing
-    • Translation
-    • Social media management
+  schedule:
+    # 9:00 AM India time = 3:30 AM UTC
+    - cron: "30 3 * * *"
 
-    🎯 Pick ONE skill and practise it consistently.
+jobs:
+  post-to-telegram:
+    runs-on: ubuntu-latest
 
-    💡 Your goal should be to become useful enough that someone is willing to pay for your work.
-            """
-        },
+    steps:
+      - name: Generate and publish daily post
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: "@LegitEarnIndia"
+
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import time
+          import urllib.request
+          import urllib.parse
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          # ============================================================
+          # CONFIGURATION
+          # ============================================================
 
-        {
-            "title": "🏠 Remote Work: Find Real Opportunities",
-            "body": """
-    💼 Remote work can provide legitimate income without travelling to an office.
+          TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+          CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+
+          TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
+
+          # India date/time
+          now = datetime.now(ZoneInfo("Asia/Kolkata"))
+          date = now.strftime("%d %B %Y")
+
+          print("========================================")
+          print("EarnSmart India Daily Post")
+          print("India time:", now.strftime("%Y-%m-%d %H:%M:%S"))
+          print("Date:", date)
+          print("========================================")
+
+          # ============================================================
+          # 7-DAY CONTENT ROTATION
+          # ============================================================
+
+          posts = [
+
+              {
+                  "title": "💻 Freelancing: Start With One Useful Skill",
+                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          🚀 <b>How to start:</b>
+
+          1️⃣ Choose ONE useful skill such as:
+          • Writing
+          • Graphic design
+          • Video editing
+          • Translation
+          • Coding
+          • Social media management
+
+          2️⃣ Create 2–3 sample projects.
+
+          3️⃣ Build a simple portfolio.
+
+          4️⃣ Contact genuine clients.
+
+          5️⃣ Start with small projects.
+
+          6️⃣ Collect reviews and improve your rates.
+
+          💡 <b>Tip:</b>
+          Don't try to learn everything at once. Become useful at one skill first.
+
+          ⚠️ Never pay money to someone who guarantees you a freelance job.
+          """
+              },
+
+              {
+                  "title": "🎓 Online Tutoring: Turn Knowledge Into Income",
+                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          📚 If you are good at a subject, online tutoring can become a legitimate income source.
+
+          <b>You can teach:</b>
+
+          • School subjects
+          • English
+          • Mathematics
+          • Computer basics
+          • Programming
+          • Exam preparation
+
+          🚀 <b>Simple starting plan:</b>
+
+          1️⃣ Choose your strongest subject.
+          2️⃣ Prepare simple lessons.
+          3️⃣ Decide your hourly rate.
+          4️⃣ Find students through legitimate channels.
+          5️⃣ Build your reputation through good teaching.
+
+          💡 Start small and improve as you gain experience.
+
+          ⚠️ Avoid platforms or people asking for large upfront payments in exchange for guaranteed students.
+          """
+              },
+
+              {
+                  "title": "🌐 Website & Blog: Build a Long-Term Asset",
+                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          💻 A useful website can become a long-term online asset.
+
+          <b>Possible topics:</b>
+
+          • Technology
+          • Education
+          • Finance basics
+          • Jobs
+          • Tutorials
+          • Local information
+          • Helpful tools
+
+          🚀 <b>Basic plan:</b>
+
+          1️⃣ Pick one clear topic.
+          2️⃣ Publish genuinely useful content.
+          3️⃣ Learn basic SEO.
+          4️⃣ Build traffic gradually.
+          5️⃣ Explore legitimate monetization options.
+
+          💡 Don't expect instant income. Traffic and trust take time.
+
+          📈 Focus on helping visitors first. Monetization can come later.
+          """
+              },
+
+              {
+                  "title": "🏠 Remote Work: Find Legitimate Online Jobs",
+                  "image": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          💼 Remote work can provide legitimate income when you have the right skills.
+
+          <b>Common areas include:</b>
+
+          • Customer support
+          • Virtual assistance
+          • Data-related work
+          • Software development
+          • Design
+          • Sales
+          • Content work
+
+          🚀 <b>Before applying:</b>
+
+          1️⃣ Prepare a professional CV.
+          2️⃣ Create a portfolio where relevant.
+          3️⃣ Apply through legitimate company websites or platforms.
+          4️⃣ Research the employer.
+          5️⃣ Never pay for a guaranteed job.
+
+          🚨 <b>Scam warning:</b>
+          Genuine employers normally don't demand money simply to give you a job.
+          """
+              },
+
+              {
+                  "title": "💰 Personal Finance: Start With Better Money Habits",
+                  "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          💡 Increasing income is important, but managing the money you already have is equally important.
+
+          <b>Start with these habits:</b>
+
+          1️⃣ Track your daily expenses.
+          2️⃣ Separate needs from wants.
+          3️⃣ Build an emergency fund.
+          4️⃣ Avoid unnecessary high-interest debt.
+          5️⃣ Learn basic investing concepts before investing.
+          6️⃣ Never invest money you cannot afford to lose.
+
+          📊 <b>Simple rule:</b>
+          Understand a financial product before putting your money into it.
+
+          ⚠️ Be careful with schemes promising guaranteed high returns or quick profits.
+          """
+              },
+
+              {
+                  "title": "🛒 Online Selling: Start Small",
+                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          🛍️ Online selling can be started on a small scale if you have a useful product and understand your customers.
+
+          <b>Possible products:</b>
+
+          • Handmade items
+          • Digital products
+          • Local products
+          • Customized products
+          • Useful accessories
+
+          🚀 <b>Starting steps:</b>
+
+          1️⃣ Choose a product.
+          2️⃣ Research competitors.
+          3️⃣ Calculate your real costs.
+          4️⃣ Create clear product photos.
+          5️⃣ Start with a small quantity.
+          6️⃣ Provide good customer service.
+
+          💡 Don't buy large inventory before testing demand.
+
+          ⚠️ Always follow applicable marketplace, tax and consumer-protection rules.
+          """
+              },
+
+              {
+                  "title": "🤖 Digital Skills: Learn Skills That Businesses Need",
+                  "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85",
+                  "body": """
+          🚀 Digital skills can create opportunities for freelancing, employment and online businesses.
+
+          <b>Useful skills to explore:</b>
+
+          • WordPress
+          • Graphic design
+          • Video editing
+          • SEO
+          • Web development
+          • Data analysis
+          • AI-assisted productivity
+          • Social media management
 
-    <b>Common areas include:</b>
-
-    • Customer support
-    • Virtual assistance
-    • Data-related work
-    • Software development
-    • Design
-    • Sales
-    • Content work
-
-    🚀 <b>Before applying:</b>
-
-    1️⃣ Prepare a professional CV.
-    2️⃣ Create a portfolio where relevant.
-    3️⃣ Research the employer.
-    4️⃣ Apply through legitimate channels.
-    5️⃣ Never pay money to receive a job.
-
-    ⚠️ A genuine employer should not demand money simply to give you a job.
-            """
-        },
-
-        {
-            "title": "🛠️ Sell a Digital Service",
-            "body": """
-    💡 Instead of looking only for jobs, you can offer a useful service.
-
-    <b>Examples:</b>
-
-    • Logo design
-    • Video editing
-    • Website setup
-    • WordPress customization
-    • Resume formatting
-    • Translation
-    • Social media posts
-
-    🚀 Start small.
-
-    Create 2–3 examples of your work, show them to potential clients and improve your service based on feedback.
-
-    ⚠️ Avoid clients who ask you to pay money before giving you work.
-            """
-        },
-
-        {
-            "title": "💰 Build Income Slowly and Safely",
-            "body": """
-    📈 Sustainable online income usually doesn't happen overnight.
-
-    <b>A simple approach:</b>
-
-    1️⃣ Learn a useful skill.
-    2️⃣ Practise regularly.
-    3️⃣ Create proof of your ability.
-    4️⃣ Find genuine customers or employers.
-    5️⃣ Deliver good work.
-    6️⃣ Increase your rates as your experience grows.
-
-    💡 Avoid "double your money", guaranteed-income and deposit-based schemes.
-
-    🛡️ Protect your OTPs, passwords and private wallet keys.
-            """
-        }
-    ]
-
-    # -----------------------------------------
-    # SELECT DAILY POST
-    # -----------------------------------------
-
-    post = posts[(now.timetuple().tm_yday - 1) % len(posts)]
-
-    title = post["title"]
-
-    # -----------------------------------------
-    # CREATE IMAGE
-    # -----------------------------------------
-
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-
-        W, H = 1200, 675
-
-        image = Image.new("RGB", (W, H), "#101820")
-        draw = ImageDraw.Draw(image)
-
-        # Background
-        for y in range(H):
-            r = int(15 + (y / H) * 25)
-            g = int(30 + (y / H) * 35)
-            b = int(45 + (y / H) * 45)
-            draw.line((0, y, W, y), fill=(r, g, b))
-
-        # Decorative circles
-        draw.ellipse((850, -150, 1350, 350), fill=(30, 90, 120))
-        draw.ellipse((-180, 480, 280, 900), fill=(20, 70, 90))
-
-        # Fonts
-        font_big = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            58
-        )
-
-        font_small = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            30
-        )
-
-        font_brand = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            34
-        )
-
-        # Brand
-        draw.text(
-            (70, 55),
-            "EarnSmart India",
-            font=font_brand,
-            fill="white"
-        )
-
-        draw.text(
-            (70, 105),
-            "DAILY EARNING TIP",
-            font=font_small,
-            fill="#B8DCE8"
-        )
-
-        # Title wrapping
-        words = title.split()
-        lines = []
-        line = ""
-
-        for word in words:
-            test = line + " " + word if line else word
-
-            if draw.textbbox((0, 0), test, font=font_big)[2] < 1050:
-                line = test
-            else:
-                lines.append(line)
-                line = word
-
-        if line:
-            lines.append(line)
-
-        y = 220
-
-        for line in lines[:4]:
-            draw.text(
-                (70, y),
-                line,
-                font=font_big,
-                fill="white"
-            )
-            y += 75
-
-        # Date
-        draw.text(
-            (70, 570),
-            date,
-            font=font_small,
-            fill="#D4E7ED"
-        )
-
-        # Bottom branding
-        draw.text(
-            (820, 585),
-            "#EarnSmartIndia",
-            font=font_small,
-            fill="white"
-        )
-
-        image.save("daily_post.jpg", "JPEG", quality=94)
-
-        print("✅ Image created")
-
-    except Exception as e:
-        print("❌ Image generation failed:", e)
-        raise
-
-    # -----------------------------------------
-    # TELEGRAM SEND PHOTO
-    # -----------------------------------------
-
-    caption = f"""
-💰 <b>EarnSmart India — Daily Earning Tip</b>
-
-📅 {date}
-
-<b>{title}</b>
-
-{post["body"].strip()}
-
-💡 <b>Remember:</b>
-There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
-
-📢 Follow <b>EarnSmart India</b> for practical online earning tips.
-
-#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
-"""
-
-    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-
-    boundary = "----EarnSmartBoundary"
-
-    def field(name, value):
-        return (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
-            f"{value}\r\n"
-        ).encode()
-
-    body = b""
-
-    body += field("chat_id", CHAT_ID)
-    body += field("caption", caption)
-    body += field("parse_mode", "HTML")
-
-    body += (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="photo"; filename="daily_post.jpg"\r\n'
-        f"Content-Type: image/jpeg\r\n\r\n"
-    ).encode()
-
-    with open("daily_post.jpg", "rb") as f:
-        body += f.read()
-
-    body += f"\r\n--{boundary}--\r\n".encode()
-
-    request = urllib.request.Request(
-        url,
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": f"multipart/form-data; boundary={boundary}"
-        }
-    )
-
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            result = json.loads(response.read().decode())
-
-        if not result.get("ok"):
-            raise RuntimeError(result)
-
-        print("✅ Telegram post published successfully")
-        print("📅 Date:", date)
-        print("📝 Topic:", title)
-
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode(errors="replace")
-        print("❌ Telegram HTTP error:", e.code)
-        print(error_body)
-        raise
-
-    PY
+          📌 <b>Better learning strategy:</b>
+
+          1️⃣ Pick one skill.
+          2️⃣ Learn the fundamentals.
+          3️⃣ Build real projects.
+          4️⃣ Create a portfolio.
+          5️⃣ Get feedback.
+          6️⃣ Start offering the skill.
+
+          💡 Projects are often more useful than simply collecting certificates.
+          """
+              }
+          ]
+
+          # ============================================================
+          # SELECT TODAY'S POST
+          # ============================================================
+
+          day_number = now.timetuple().tm_yday
+          post = posts[(day_number - 1) % len(posts)]
+
+          title = post["title"]
+          image_url = post["image"]
+          body = post["body"].strip()
+
+          # ============================================================
+          # CREATE TELEGRAM CAPTION
+          # ============================================================
+
+          caption = f"""
+          💰 <b>EarnSmart India — Daily Earning Tip</b>
+
+          📅 {date}
+
+          <b>{title}</b>
+
+          {body}
+
+          💡 <b>Remember:</b>
+          There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
+
+          📢 <b>Follow EarnSmart India</b> for practical online earning tips.
+
+          #EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
+          """.strip()
+
+          # Telegram captions have a practical length limit.
+          # Keep the post within Telegram's caption limit.
+          if len(caption) > 1024:
+              print("⚠️ Caption is longer than 1024 characters.")
+              print("Length:", len(caption))
+
+              # Send the image with a short caption first,
+              # then send the complete article as a separate message.
+              image_caption = f"💰 <b>EarnSmart India — Daily Earning Tip</b>\n📅 {date}\n\n<b>{title}</b>"
+
+              full_text = f"""
+          {body}
+
+          💡 <b>Remember:</b>
+          There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
+
+          📢 <b>Follow EarnSmart India</b> for practical online earning tips.
+
+          #EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
+          """.strip()
+          else:
+              image_caption = caption
+              full_text = None
+
+          # ============================================================
+          # DOWNLOAD IMAGE
+          # ============================================================
+
+          image_file = "/tmp/daily_post.jpg"
+
+          print("Downloading image...")
+          print(image_url)
+
+          try:
+              request = urllib.request.Request(
+                  image_url,
+                  headers={
+                      "User-Agent": "Mozilla/5.0"
+                  }
+              )
+
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  image_data = response.read()
+
+              with open(image_file, "wb") as f:
+                  f.write(image_data)
+
+              image_size = os.path.getsize(image_file)
+
+              print("✅ Image downloaded.")
+              print("Image size:", image_size, "bytes")
+
+              if image_size < 1000:
+                  raise RuntimeError("Downloaded image appears to be invalid.")
+
+          except Exception as e:
+              print("⚠️ Image download failed:", e)
+              image_file = None
+
+          # ============================================================
+          # TELEGRAM REQUEST HELPER
+          # ============================================================
+
+          def telegram_request(method, fields, file_field=None, file_path=None):
+
+              url = f"{TELEGRAM_API}/{method}"
+
+              boundary = "----EarnSmartIndiaBoundary"
+
+              body = b""
+
+              for name, value in fields.items():
+                  body += (
+                      f"--{boundary}\r\n"
+                      f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+                      f"{value}\r\n"
+                  ).encode("utf-8")
+
+              if file_field and file_path:
+                  filename = os.path.basename(file_path)
+
+                  with open(file_path, "rb") as f:
+                      file_data = f.read()
+
+                  body += (
+                      f"--{boundary}\r\n"
+                      f'Content-Disposition: form-data; name="{file_field}"; '
+                      f'filename="{filename}"\r\n'
+                      f"Content-Type: image/jpeg\r\n\r\n"
+                  ).encode("utf-8")
+
+                  body += file_data
+                  body += b"\r\n"
+
+              body += f"--{boundary}--\r\n".encode("utf-8")
+
+              request = urllib.request.Request(
+                  url,
+                  data=body,
+                  method="POST"
+              )
+
+              request.add_header(
+                  "Content-Type",
+                  f"multipart/form-data; boundary={boundary}"
+              )
+
+              request.add_header(
+                  "User-Agent",
+                  "EarnSmartIndiaBot/1.0"
+              )
+
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  response_data = response.read().decode("utf-8")
+
+              return json.loads(response_data)
+
+          # ============================================================
+          # SEND PHOTO WITH RETRIES
+          # ============================================================
+
+          success = False
+
+          if image_file:
+
+              print("Sending photo to Telegram...")
+
+              for attempt in range(1, 4):
+
+                  try:
+
+                      result = telegram_request(
+                          "sendPhoto",
+                          {
+                              "chat_id": CHAT_ID,
+                              "caption": image_caption,
+                              "parse_mode": "HTML"
+                          },
+                          file_field="photo",
+                          file_path=image_file
+                      )
+
+                      if result.get("ok"):
+                          print("✅ Photo published successfully.")
+                          success = True
+                          break
+
+                      print(
+                          f"⚠️ Telegram error on attempt {attempt}:",
+                          result
+                      )
+
+                  except Exception as e:
+
+                      print(
+                          f"⚠️ Telegram request failed on attempt {attempt}:",
+                          e
+                      )
+
+                  if attempt < 3:
+                      time.sleep(5)
+
+          # ============================================================
+          # FALLBACK: TEXT MESSAGE
+          # ============================================================
+
+          if not success:
+
+              print("⚠️ Photo upload failed.")
+
+              print("Sending text fallback...")
+
+              if full_text:
+                  text_to_send = (
+                      f"💰 <b>EarnSmart India — Daily Earning Tip</b>\n\n"
+                      f"📅 {date}\n\n"
+                      f"<b>{title}</b>\n\n"
+                      f"{full_text}"
+                  )
+              else:
+                  text_to_send = caption
+
+              data = urllib.parse.urlencode({
+                  "chat_id": CHAT_ID,
+                  "text": text_to_send,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": "true"
+              }).encode("utf-8")
+
+              request = urllib.request.Request(
+                  f"{TELEGRAM_API}/sendMessage",
+                  data=data,
+                  method="POST"
+              )
+
+              try:
+
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=60
+                  ) as response:
+
+                      result = json.loads(
+                          response.read().decode("utf-8")
+                      )
+
+                  if not result.get("ok"):
+                      raise RuntimeError(result)
+
+                  print("✅ Text fallback published successfully.")
+                  success = True
+
+              except Exception as e:
+
+                  print("❌ Telegram publishing failed:", e)
+                  raise
+
+          # ============================================================
+          # SEND COMPLETE ARTICLE IF CAPTION WAS TOO LONG
+          # ============================================================
+
+          if success and full_text and image_file:
+
+              print("Sending remaining article text...")
+
+              complete_message = (
+                  f"{full_text}"
+              )
+
+              data = urllib.parse.urlencode({
+                  "chat_id": CHAT_ID,
+                  "text": complete_message,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": "true"
+              }).encode("utf-8")
+
+              request = urllib.request.Request(
+                  f"{TELEGRAM_API}/sendMessage",
+                  data=data,
+                  method="POST"
+              )
+
+              try:
+
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=60
+                  ) as response:
+
+                      result = json.loads(
+                          response.read().decode("utf-8")
+                      )
+
+                  if not result.get("ok"):
+                      raise RuntimeError(result)
+
+                  print("✅ Complete article text published.")
+
+              except Exception as e:
+
+                  print("⚠️ Could not send remaining text:", e)
+
+          # ============================================================
+          # FINAL LOG
+          # ============================================================
+
+          print("========================================")
+          print("✅ DAILY POST PROCESS COMPLETED")
+          print("Date:", date)
+          print("Topic:", title)
+          print("========================================")
+
+          PY
