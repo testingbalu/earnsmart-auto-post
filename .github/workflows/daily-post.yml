@@ -32,208 +32,205 @@ jobs:
 
           # 7-day rotating content
           posts = [
-
               {
-                  "title": "💻 Freelancing: Start With ONE Skill",
-                  "image": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
+                  "title": "💻 Freelancing: Start With One Skill",
+                  "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200",
                   "body": """
-🚀 <b>How to start:</b>
+          🚀 <b>How to start:</b>
 
-1️⃣ Choose one useful skill.
-2️⃣ Create 2–3 sample works.
-3️⃣ Build a simple portfolio.
-4️⃣ Contact genuine clients.
-5️⃣ Start with small projects.
-6️⃣ Collect reviews and improve.
+          1️⃣ Choose ONE useful skill such as writing, design, video editing, translation or coding.
 
-💡 <b>Tip:</b> Don't try to learn everything at once. Become useful at ONE skill first.
+          2️⃣ Create 2–3 sample projects.
 
-⚠️ Never pay money for a guaranteed freelance job.
-"""
+          3️⃣ Build a simple portfolio.
+
+          4️⃣ Contact genuine clients.
+
+          5️⃣ Start with small projects.
+
+          6️⃣ Collect reviews and improve your rates.
+
+          💡 <b>Tip:</b> Don't try to learn everything at once. Become useful at ONE skill first.
+
+          ⚠️ Never pay money for a guaranteed freelance job.
+                  """
               },
 
               {
-                  "title": "📚 Online Tutoring: Turn Knowledge Into Income",
-                  "image": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
+                  "title": "🎓 Online Tutoring: Turn Knowledge Into Income",
+                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200",
                   "body": """
-🎓 If you are strong in a subject, online tutoring can become a genuine income source.
+          📚 <b>What can you teach?</b>
 
-<b>You can teach:</b>
+          • School subjects
+          • English
+          • Mathematics
+          • Computer basics
+          • Programming
+          • Exam preparation
 
-• School subjects
-• English
-• Mathematics
-• Computer basics
-• Programming
-• Exam preparation
+          🚀 <b>How to start:</b>
 
-🚀 <b>Start:</b>
+          1️⃣ Choose your strongest subject.
+          2️⃣ Prepare simple lessons.
+          3️⃣ Decide your hourly rate.
+          4️⃣ Find students through legitimate platforms or your network.
+          5️⃣ Build your reputation through good teaching.
 
-1️⃣ Choose your strongest subject.
-2️⃣ Prepare simple lessons.
-3️⃣ Decide your hourly rate.
-4️⃣ Find students through legitimate platforms or your network.
-5️⃣ Build trust through good teaching.
-
-⚠️ Avoid anyone asking for a large upfront fee promising guaranteed students.
-"""
+          ⚠️ Be careful with anyone asking for a large upfront payment to provide students.
+                  """
               },
 
               {
-                  "title": "🏠 Remote Work: Find Real Online Jobs",
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80",
+                  "title": "📱 YouTube: Build an Audience With Useful Content",
+                  "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200",
                   "body": """
-💼 Remote work allows you to work for legitimate companies without travelling to an office.
+          🎥 You don't need expensive equipment to start.
 
-<b>Common areas:</b>
+          <b>Start with:</b>
 
-• Customer support
-• Virtual assistance
-• Data-related work
-• Software development
-• Design
-• Sales
-• Content work
+          1️⃣ Choose one topic you understand.
+          2️⃣ Create useful videos regularly.
+          3️⃣ Improve your thumbnails and titles.
+          4️⃣ Study what your audience likes.
+          5️⃣ Build trust before trying to monetize.
 
-🔎 <b>Before applying:</b>
+          💡 Tutorials, educational content, reviews and practical guides can all be useful.
 
-1️⃣ Prepare a professional CV.
-2️⃣ Create a portfolio where relevant.
-3️⃣ Research the employer.
-4️⃣ Apply through legitimate channels.
-5️⃣ Never pay for a promised job.
-
-🚨 <b>Scam warning:</b>
-A genuine employer normally does not demand money simply to give you a job.
-"""
+          ⚠️ Don't buy fake views or subscribers.
+                  """
               },
 
               {
-                  "title": "✍️ Content Writing: Earn With Your Writing Skill",
-                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80",
+                  "title": "🌐 Website & Blog: Build a Long-Term Asset",
+                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200",
                   "body": """
-📝 Businesses need articles, blogs, product descriptions and social-media content.
+          💻 A useful website can become a long-term online asset.
 
-🚀 <b>How to start:</b>
+          <b>Possible topics:</b>
 
-1️⃣ Choose a topic you understand.
-2️⃣ Write 2–3 sample articles.
-3️⃣ Create a simple portfolio.
-4️⃣ Contact genuine clients.
-5️⃣ Start with manageable projects.
-6️⃣ Improve your writing continuously.
+          • Technology
+          • Education
+          • Finance basics
+          • Jobs
+          • Tutorials
+          • Local information
 
-💡 Good writing solves a business problem — it isn't just about writing lots of words.
+          🚀 <b>Basic plan:</b>
 
-⚠️ Never pay someone because they promise guaranteed writing income.
-"""
+          1️⃣ Pick one clear topic.
+          2️⃣ Publish genuinely useful content.
+          3️⃣ Learn basic SEO.
+          4️⃣ Build traffic gradually.
+          5️⃣ Explore legitimate monetization options.
+
+          💡 Don't expect instant income. Traffic and trust take time.
+                  """
               },
 
               {
-                  "title": "🎨 Graphic Design: Start Small",
-                  "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80",
+                  "title": "🎨 Graphic Design: Sell a Useful Skill",
+                  "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=1200",
                   "body": """
-🎨 Graphic design can be useful for businesses, creators and local shops.
+          🎨 If you enjoy designing, you can build a freelance service around it.
 
-<b>Beginner services can include:</b>
+          <b>Possible services:</b>
 
-• Social-media posts
-• YouTube thumbnails
-• Posters
-• Business flyers
-• Simple logos
-• Presentation designs
+          • Social media posts
+          • YouTube thumbnails
+          • Logos
+          • Posters
+          • Presentations
+          • Business graphics
 
-🚀 <b>Simple plan:</b>
+          🚀 <b>Start:</b>
 
-1️⃣ Learn one design tool.
-2️⃣ Create 5 sample designs.
-3️⃣ Make a portfolio.
-4️⃣ Contact small businesses.
-5️⃣ Start with small projects.
-6️⃣ Build reviews and increase your rates.
+          1️⃣ Learn one design tool.
+          2️⃣ Create 5 strong samples.
+          3️⃣ Build a portfolio.
+          4️⃣ Contact genuine businesses.
+          5️⃣ Start with manageable projects.
 
-💡 Focus on solving the customer's problem rather than simply making something attractive.
-"""
+          💡 Quality and reliability are more important than promising unrealistic income.
+                  """
               },
 
               {
-                  "title": "📱 Social Media Management: A Beginner Opportunity",
-                  "image": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80",
+                  "title": "📝 Content Writing: Get Paid for Useful Information",
+                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200",
                   "body": """
-📲 Many small businesses need help managing their social-media pages.
+          ✍️ Businesses need useful written content.
 
-<b>You can offer:</b>
+          <b>You can offer:</b>
 
-• Post creation
-• Caption writing
-• Content calendars
-• Basic page management
-• Comment/reply management
-• Simple analytics reports
+          • Blog articles
+          • Product descriptions
+          • Website content
+          • Social media captions
+          • Tutorials
+          • Email content
 
-🚀 <b>Start:</b>
+          🚀 <b>How to begin:</b>
 
-1️⃣ Learn the basics.
-2️⃣ Create sample posts.
-3️⃣ Choose a business niche.
-4️⃣ Contact local businesses.
-5️⃣ Offer a small trial project.
-6️⃣ Build long-term relationships.
+          1️⃣ Select one niche.
+          2️⃣ Write 2–3 excellent samples.
+          3️⃣ Create a portfolio.
+          4️⃣ Contact legitimate clients.
+          5️⃣ Improve based on feedback.
 
-⚠️ Avoid clients who ask you to pay money before giving you work.
-"""
+          ⚠️ Avoid clients who ask you to pay money before giving you guaranteed work.
+                  """
               },
 
               {
-                  "title": "🌐 Website Skills: Build a Valuable Online Skill",
-                  "image": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80",
+                  "title": "🏠 Remote Work: Find Legitimate Online Jobs",
+                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200",
                   "body": """
-💻 Website skills can create opportunities for freelance and small-business work.
+          💼 Remote work can provide legitimate income when you have the right skills.
 
-<b>Begin with:</b>
+          <b>Common areas include:</b>
 
-• WordPress
-• Basic HTML/CSS
-• Website editing
-• Landing pages
-• Website maintenance
-• Basic SEO
+          • Customer support
+          • Virtual assistance
+          • Data-related work
+          • Software development
+          • Design
+          • Sales
+          • Content work
 
-🚀 <b>Simple roadmap:</b>
+          🚀 <b>Before applying:</b>
 
-1️⃣ Learn one area.
-2️⃣ Build 2–3 demo websites.
-3️⃣ Create a portfolio.
-4️⃣ Find genuine businesses.
-5️⃣ Offer a clearly defined service.
-6️⃣ Improve your skills with every project.
+          1️⃣ Prepare a professional CV.
+          2️⃣ Create a portfolio where relevant.
+          3️⃣ Research the employer.
+          4️⃣ Apply through legitimate channels.
+          5️⃣ Never pay money to receive a guaranteed job.
 
-💡 A useful skill + real clients + consistent work is a much safer path than "quick money" schemes.
-"""
+          🔴 <b>Scam warning:</b> Genuine employers normally don't demand money simply to give you a job.
+                  """
               }
           ]
 
-          # Select today's post
-          day_number = now.timetuple().tm_yday
-          post = posts[(day_number - 1) % len(posts)]
+          # Select post based on day of year
+          post = posts[(now.timetuple().tm_yday - 1) % len(posts)]
 
-          caption = f"""
-💰 <b>EarnSmart India — Daily Earning Tip</b>
+          caption = f"""💰 <b>EarnSmart India — Daily Earning Tip</b>
 
 📅 {date}
 
 <b>{post["title"]}</b>
 
-{post["body"]}
+{post["body"].strip()}
 
-━━━━━━━━━━━━━━
-🔔 Follow <b>EarnSmart India</b> for practical online earning ideas.
+💡 <b>Remember:</b>
+There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort and consistency.
 
-#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
-"""
+📢 Follow <b>EarnSmart India</b> for practical online earning tips.
 
-          api = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs"""
+
+          # Telegram API
+          url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
           data = urllib.parse.urlencode({
               "chat_id": CHAT_ID,
@@ -243,7 +240,7 @@ A genuine employer normally does not demand money simply to give you a job.
           }).encode()
 
           request = urllib.request.Request(
-              api,
+              url,
               data=data,
               method="POST"
           )
@@ -255,12 +252,11 @@ A genuine employer normally does not demand money simply to give you a job.
               if not result.get("ok"):
                   raise RuntimeError(result)
 
-              print("✅ Daily image post published successfully.")
+              print("✅ Daily Telegram post published successfully.")
               print("📅 Date:", date)
               print("📝 Topic:", post["title"])
 
           except Exception as e:
               print("❌ Telegram publishing failed:", e)
               raise
-
           PY
