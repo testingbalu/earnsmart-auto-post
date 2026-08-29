@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC
+    # 9:00 AM India time = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 permissions:
@@ -13,388 +13,454 @@ permissions:
 jobs:
   post-to-telegram:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    env:
-      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-      CHAT_ID: ${{ secrets.CHAT_ID }}
 
     steps:
+      - name: Set up job
+        uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Generate and publish daily post
-        shell: bash
+      - name: Install Python packages
         run: |
-          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install requests
 
-          python <<'PY'
+      - name: Generate and publish daily post
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
           import os
           import sys
-          import json
           import time
           import html
-          import random
-          import hashlib
-          from datetime import datetime, timezone
-          from urllib.request import Request, urlopen
-          from urllib.error import HTTPError, URLError
-          from urllib.parse import urlencode
+          import datetime
+          from pathlib import Path
+
+          import requests
+
 
           # ============================================================
           # CONFIGURATION
           # ============================================================
 
-          BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
-          CHAT_ID = os.environ.get("CHAT_ID", "").strip()
+          TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-          TELEGRAM_API = "https://api.telegram.org/bot{}".format(BOT_TOKEN)
-
-          MAX_CAPTION_LENGTH = 1024
-          IMAGE_TIMEOUT = 30
-          TELEGRAM_TIMEOUT = 45
-
-          # Fallback image.
-          # This is downloaded and uploaded to Telegram rather than
-          # asking Telegram to fetch the URL itself.
-          FALLBACK_IMAGE = (
-              "https://images.unsplash.com/"
-              "photo-1556761175-b413da4baf72"
-              "?auto=format&fit=crop&w=1280&q=85"
-          )
-
-          USER_AGENT = (
-              "Mozilla/5.0 (X11; Linux x86_64) "
-              "AppleWebKit/537.36 "
-              "Chrome/131.0 Safari/537.36"
-          )
-
-          # ============================================================
-          # VALIDATE SECRETS
-          # ============================================================
-
-          if not BOT_TOKEN:
-              print("ERROR: BOT_TOKEN secret is missing.")
+          if not TOKEN:
+              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: CHAT_ID secret is missing.")
+              print("ERROR: TELEGRAM_CHAT_ID secret is missing.")
               sys.exit(1)
 
+          API_BASE = f"https://api.telegram.org/bot{TOKEN}"
+
+          TODAY = datetime.date.today()
+          DATE_TEXT = TODAY.strftime("%d %B %Y")
+
+          # Telegram photo caption limit.
+          CAPTION_LIMIT = 1024
+
+          # Temporary image file.
+          IMAGE_PATH = Path("/tmp/earnsmart_daily.jpg")
+
+
           # ============================================================
-          # 40 TOPIC LIBRARY
+          # 30+ TOPICS
           # ============================================================
 
-          POSTS = [
+          TOPICS = [
               {
-                  "title": "💻 Freelancing: Start With One Valuable Skill",
-                  "intro": "Freelancing can become a legitimate income source when you build a useful skill and consistently deliver quality work.",
-                  "points": [
-                      "Choose one service such as writing, design, video editing or web development.",
-                      "Create 3–5 sample projects.",
-                      "Start with realistic projects instead of chasing instant money.",
-                      "Communicate clearly and meet deadlines.",
+                  "title": "Remote Work: Find Legitimate Online Jobs",
+                  "intro": "Remote work can provide legitimate income when you have the right skills.",
+                  "areas": [
+                      "Customer support",
+                      "Virtual assistance",
+                      "Data-related work",
+                      "Software development",
+                      "Design",
+                      "Sales",
+                      "Content work",
                   ],
-                  "image": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🌐 Website: Build a Long-Term Online Asset",
-                  "intro": "A useful website can gradually become an online asset when it solves a real problem for visitors.",
-                  "points": [
-                      "Choose one focused topic.",
-                      "Publish genuinely useful articles and tools.",
-                      "Learn basic SEO.",
-                      "Build traffic gradually.",
-                      "Explore legitimate advertising and affiliate opportunities.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📱 YouTube: Build Around Useful Content",
-                  "intro": "YouTube can become a long-term opportunity when your videos consistently help or entertain a specific audience.",
-                  "points": [
-                      "Choose a focused niche.",
-                      "Create useful original videos.",
-                      "Improve thumbnails and titles.",
-                      "Study audience retention.",
-                      "Stay consistent instead of expecting instant income.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "✍️ Content Writing: Turn Research Into Value",
-                  "intro": "Good content writing is more than typing. It requires research, structure, accuracy and clear communication.",
-                  "points": [
-                      "Learn headline writing.",
-                      "Practice research and fact checking.",
-                      "Create writing samples.",
-                      "Learn basic SEO.",
-                      "Target legitimate clients and publications.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🎨 Graphic Design: Build a Portfolio",
-                  "intro": "Design skills can be sold as services when you can demonstrate practical results.",
-                  "points": [
-                      "Learn layout and typography.",
-                      "Practice social media graphics.",
-                      "Create sample brand designs.",
-                      "Build a simple portfolio.",
-                      "Approach legitimate clients.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🎬 Video Editing: A Practical Digital Skill",
-                  "intro": "Video editing is useful for creators, businesses and online educators.",
-                  "points": [
-                      "Learn cutting and pacing.",
-                      "Practice subtitles and transitions.",
-                      "Create short sample videos.",
-                      "Build a portfolio.",
-                      "Offer clear service packages.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🤖 AI Tools: Learn to Use Them Productively",
-                  "intro": "AI tools can improve productivity, but useful income still depends on skills, judgment and delivering real value.",
-                  "points": [
-                      "Learn prompting and verification.",
-                      "Use AI to speed up repetitive tasks.",
-                      "Always check generated information.",
-                      "Combine AI with a real professional skill.",
-                      "Never sell copied or misleading work.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🧑‍💻 Web Development: Build Practical Projects",
-                  "intro": "Web development remains a useful skill because businesses need websites, applications and digital tools.",
-                  "points": [
-                      "Learn HTML, CSS and JavaScript.",
-                      "Build small real projects.",
-                      "Learn responsive design.",
-                      "Create a portfolio.",
-                      "Progress toward advanced frameworks.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📊 Data Skills: Learn Before You Sell",
-                  "intro": "Spreadsheet and data skills can support business operations and freelance work.",
-                  "points": [
-                      "Master spreadsheet basics.",
-                      "Learn formulas and data cleaning.",
-                      "Practice charts and dashboards.",
-                      "Learn basic SQL.",
-                      "Create sample projects.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🛒 Online Selling: Start Small",
-                  "intro": "Online selling can work when you have a useful product, reliable fulfilment and realistic margins.",
-                  "points": [
-                      "Research demand first.",
-                      "Calculate all costs.",
-                      "Use clear product information.",
-                      "Provide reliable customer support.",
-                      "Avoid unrealistic profit claims.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📚 Online Tutoring: Monetize What You Know",
-                  "intro": "Teaching can become a legitimate service when you have knowledge that students actually need.",
-                  "points": [
-                      "Choose a subject you understand.",
-                      "Prepare structured lessons.",
-                      "Offer sample explanations.",
-                      "Build trust through results.",
-                      "Use legitimate payment methods.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🏠 Remote Work: Find Legitimate Jobs",
-                  "intro": "Remote employment can provide legitimate income when you have the required skills and find genuine employers.",
-                  "points": [
+                  "steps": [
                       "Prepare a professional CV.",
                       "Create a portfolio where relevant.",
                       "Apply through legitimate company websites or platforms.",
-                      "Research the employer.",
+                      "Research the employer before accepting an offer.",
                       "Never pay for a guaranteed job.",
                   ],
-                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1280&q=85",
+                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=85",
               },
               {
-                  "title": "🧑‍💼 Virtual Assistance: Help Businesses Remotely",
-                  "intro": "Virtual assistants can support businesses with administrative and online tasks.",
-                  "points": [
-                      "Learn email and calendar management.",
-                      "Practice spreadsheets.",
-                      "Learn basic customer communication.",
-                      "Create service packages.",
-                      "Keep client information confidential.",
+                  "title": "Build Multiple Legitimate Income Skills",
+                  "intro": "A stronger long-term strategy is to build useful skills instead of searching for instant-money schemes.",
+                  "areas": [
+                      "Freelancing",
+                      "Content creation",
+                      "Websites",
+                      "Digital services",
+                      "Online selling",
+                      "Remote employment",
                   ],
-                  "image": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📣 Social Media Management",
-                  "intro": "Businesses often need help planning, creating and managing social media content.",
-                  "points": [
-                      "Learn content planning.",
-                      "Understand basic analytics.",
-                      "Create sample calendars.",
-                      "Learn platform-specific formats.",
-                      "Focus on measurable business value.",
+                  "steps": [
+                      "Learn one skill first.",
+                      "Get practical experience.",
+                      "Build proof of your work.",
+                      "Find legitimate opportunities.",
+                      "Gradually add another complementary skill.",
                   ],
-                  "image": "https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=1280&q=85",
+                  "image": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85",
               },
               {
-                  "title": "🔍 SEO: Learn How Search Works",
-                  "intro": "SEO is a long-term skill focused on helping useful content become easier for search engines and people to discover.",
-                  "points": [
-                      "Learn search intent.",
-                      "Write useful titles.",
-                      "Improve site structure.",
-                      "Create genuinely valuable content.",
-                      "Avoid spammy shortcuts.",
+                  "title": "Start Freelancing With a Useful Skill",
+                  "intro": "Freelancing can become an income source when you solve real problems for clients.",
+                  "areas": [
+                      "Writing",
+                      "Graphic design",
+                      "Video editing",
+                      "Web development",
+                      "Virtual assistance",
+                      "Translation",
                   ],
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📰 Blogging: Build Trust Before Revenue",
-                  "intro": "A blog usually takes time to grow, so focus first on useful content and audience trust.",
-                  "points": [
-                      "Choose one clear niche.",
-                      "Publish consistently.",
-                      "Research topics carefully.",
-                      "Improve SEO over time.",
-                      "Monetize only after building useful traffic.",
+                  "steps": [
+                      "Choose one service.",
+                      "Create three sample projects.",
+                      "Build a simple portfolio.",
+                      "Start with realistic projects.",
+                      "Collect genuine client feedback.",
                   ],
-                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1280&q=85",
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
               },
               {
-                  "title": "💼 LinkedIn: Build a Professional Presence",
-                  "intro": "A strong professional profile can help you discover jobs, clients and networking opportunities.",
-                  "points": [
-                      "Use a clear professional headline.",
-                      "Show relevant skills.",
-                      "Add project examples.",
-                      "Share useful knowledge.",
-                      "Connect with relevant professionals.",
+                  "title": "Learn Digital Marketing",
+                  "intro": "Digital marketing skills can be useful for businesses, creators and freelancers.",
+                  "areas": [
+                      "Social media",
+                      "SEO",
+                      "Email marketing",
+                      "Content strategy",
+                      "Analytics",
+                      "Advertising",
                   ],
-                  "image": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📸 Photography: Sell a Real Skill",
-                  "intro": "Photography can become a service when you develop a recognizable style and reliable workflow.",
-                  "points": [
-                      "Practice composition.",
-                      "Learn basic editing.",
-                      "Build a portfolio.",
-                      "Choose a service niche.",
-                      "Price based on costs and value.",
+                  "steps": [
+                      "Learn the fundamentals.",
+                      "Practice on a small project.",
+                      "Track measurable results.",
+                      "Create case studies.",
+                      "Offer a specific service.",
                   ],
-                  "image": "https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?auto=format&fit=crop&w=1280&q=85",
+                  "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85",
               },
               {
-                  "title": "🎙️ Podcasting: Grow an Audience Slowly",
-                  "intro": "Podcasting is an audience-building activity first. Monetization normally comes later.",
-                  "points": [
-                      "Choose a focused topic.",
-                      "Plan episodes carefully.",
-                      "Prioritize audio quality.",
-                      "Publish consistently.",
-                      "Build trust with useful discussions.",
+                  "title": "Make Money With Website Skills",
+                  "intro": "Website development is a practical skill that can support freelance and business opportunities.",
+                  "areas": [
+                      "WordPress",
+                      "Landing pages",
+                      "Website maintenance",
+                      "Frontend development",
+                      "Speed optimization",
+                      "Basic SEO",
                   ],
-                  "image": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "📱 App Development: Solve a Real Problem",
-                  "intro": "Apps have better long-term potential when they solve a specific problem instead of simply copying trends.",
-                  "points": [
-                      "Identify a real user problem.",
-                      "Build a simple prototype.",
-                      "Test with users.",
-                      "Improve based on feedback.",
-                      "Use ethical monetization.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🧾 Resume Services: Improve Professional Documents",
-                  "intro": "Resume editing can be a useful service if you understand clear writing, formatting and truthful presentation.",
-                  "points": [
-                      "Learn professional formatting.",
-                      "Focus on measurable achievements.",
-                      "Avoid false claims.",
-                      "Create sample resumes.",
-                      "Protect client information.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "⌨️ Transcription: Build Accuracy",
-                  "intro": "Transcription work requires strong listening, typing accuracy and attention to detail.",
-                  "points": [
-                      "Practice typing.",
-                      "Improve listening accuracy.",
-                      "Learn timestamping.",
-                      "Understand formatting requirements.",
-                      "Use legitimate work platforms.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🌍 Translation: Language Skills Can Help",
-                  "intro": "Translation can be valuable when you understand both languages and the subject matter.",
-                  "points": [
-                      "Develop strong language skills.",
-                      "Practice natural translation.",
-                      "Learn terminology.",
-                      "Build samples.",
-                      "Review every translation before delivery.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🎧 Customer Support: A Remote Skill",
-                  "intro": "Customer support roles can be available remotely when you have communication and problem-solving skills.",
-                  "points": [
-                      "Improve written communication.",
-                      "Learn professional etiquette.",
-                      "Practice problem solving.",
-                      "Understand ticket systems.",
-                      "Apply through legitimate employers.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🧮 Excel Skills: Start With Practical Tasks",
-                  "intro": "Spreadsheet skills are useful across many industries and can support freelance work.",
-                  "points": [
-                      "Learn formulas.",
-                      "Use sorting and filtering.",
-                      "Create clean tables.",
-                      "Build simple dashboards.",
-                      "Practice with real-world datasets.",
-                  ],
-                  "image": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1280&q=85",
-              },
-              {
-                  "title": "🖥️ WordPress: Build Useful Websites",
-                  "intro": "WordPress can help you build websites without starting every project completely from scratch.",
-                  "points": [
-                      "Learn themes and plugins.",
-                      "Understand basic SEO.",
-                      "Practice website security.",
+                  "steps": [
+                      "Learn one platform.",
                       "Build demonstration websites.",
-                      "Offer maintenance services.",
+                      "Create a portfolio.",
+                      "Offer maintenance packages.",
+                      "Keep learning modern techniques.",
                   ],
-                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=cr
+                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Start a Content Creation Skill",
+                  "intro": "Content creation can become a business when you consistently provide useful information to a specific audience.",
+                  "areas": [
+                      "YouTube",
+                      "Short videos",
+                      "Blogging",
+                      "Newsletters",
+                      "Educational content",
+                      "Social media",
+                  ],
+                  "steps": [
+                      "Choose a clear niche.",
+                      "Create useful content regularly.",
+                      "Improve titles and thumbnails.",
+                      "Study audience feedback.",
+                      "Build trust before monetization.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Online Tutoring as a Skill",
+                  "intro": "People with strong knowledge in a subject can explore legitimate online tutoring opportunities.",
+                  "areas": [
+                      "School subjects",
+                      "Languages",
+                      "Programming",
+                      "Exam preparation",
+                      "Music",
+                      "Professional skills",
+                  ],
+                  "steps": [
+                      "Choose subjects you know well.",
+                      "Prepare sample lessons.",
+                      "Set realistic rates.",
+                      "Use trusted platforms.",
+                      "Collect genuine student feedback.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Improve Your CV for Online Jobs",
+                  "intro": "A clear CV can make it easier for legitimate employers to understand your skills and experience.",
+                  "areas": [
+                      "Relevant skills",
+                      "Work experience",
+                      "Projects",
+                      "Education",
+                      "Achievements",
+                      "Portfolio links",
+                  ],
+                  "steps": [
+                      "Keep the CV easy to read.",
+                      "Highlight relevant skills.",
+                      "Use measurable achievements.",
+                      "Remove unnecessary information.",
+                      "Check spelling and formatting.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Build a Professional Portfolio",
+                  "intro": "A portfolio gives potential clients evidence of what you can actually do.",
+                  "areas": [
+                      "Design samples",
+                      "Websites",
+                      "Writing samples",
+                      "Videos",
+                      "Applications",
+                      "Case studies",
+                  ],
+                  "steps": [
+                      "Select your best work.",
+                      "Explain your role in each project.",
+                      "Show measurable results when possible.",
+                      "Keep the design simple.",
+                      "Update it regularly.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Learn Video Editing",
+                  "intro": "Video editing is useful for creators, businesses and social media teams.",
+                  "areas": [
+                      "Short-form video",
+                      "YouTube editing",
+                      "Captions",
+                      "Transitions",
+                      "Product videos",
+                      "Basic motion graphics",
+                  ],
+                  "steps": [
+                      "Learn one editing application.",
+                      "Recreate simple examples for practice.",
+                      "Build sample projects.",
+                      "Learn audio and captions.",
+                      "Offer a focused service.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Learn Graphic Design",
+                  "intro": "Businesses regularly need visual content for websites, social media and marketing.",
+                  "areas": [
+                      "Social posts",
+                      "Thumbnails",
+                      "Presentations",
+                      "Logos",
+                      "Posters",
+                      "Simple branding",
+                  ],
+                  "steps": [
+                      "Learn design fundamentals.",
+                      "Practice typography and layout.",
+                      "Create sample designs.",
+                      "Build a portfolio.",
+                      "Offer specific packages.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Start With Data Entry Carefully",
+                  "intro": "Data-related work exists, but applicants should carefully verify employers and avoid advance-fee scams.",
+                  "areas": [
+                      "Data entry",
+                      "Spreadsheet work",
+                      "Data cleaning",
+                      "Transcription",
+                      "Research",
+                      "Administrative work",
+                  ],
+                  "steps": [
+                      "Verify the company.",
+                      "Check the job description carefully.",
+                      "Never pay for a guaranteed position.",
+                      "Protect personal documents.",
+                      "Use legitimate hiring channels.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Learn Spreadsheet Skills",
+                  "intro": "Spreadsheet skills are useful in administration, finance, operations and data-related jobs.",
+                  "areas": [
+                      "Excel",
+                      "Google Sheets",
+                      "Formulas",
+                      "Charts",
+                      "Data cleaning",
+                      "Reports",
+                  ],
+                  "steps": [
+                      "Learn basic formulas.",
+                      "Practice sorting and filtering.",
+                      "Learn lookup functions.",
+                      "Create sample reports.",
+                      "Add spreadsheet projects to your portfolio.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Start Selling Digital Services",
+                  "intro": "Digital services can be sold online when they provide clear value to customers.",
+                  "areas": [
+                      "Website setup",
+                      "Design",
+                      "Writing",
+                      "Editing",
+                      "SEO",
+                      "Virtual assistance",
+                  ],
+                  "steps": [
+                      "Choose one service.",
+                      "Define exactly what the customer receives.",
+                      "Create sample work.",
+                      "Set transparent pricing.",
+                      "Deliver reliably.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Learn SEO Basics",
+                  "intro": "Search engine optimization can help websites attract relevant visitors without relying entirely on paid advertising.",
+                  "areas": [
+                      "Keyword research",
+                      "On-page SEO",
+                      "Technical SEO",
+                      "Content",
+                      "Internal links",
+                      "Search performance",
+                  ],
+                  "steps": [
+                      "Understand search intent.",
+                      "Write useful content.",
+                      "Improve page titles.",
+                      "Make websites easy to navigate.",
+                      "Measure results over time.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Build a Small Online Business",
+                  "intro": "A small online business is more sustainable when it solves a specific customer problem.",
+                  "areas": [
+                      "Digital products",
+                      "Services",
+                      "E-commerce",
+                      "Education",
+                      "Content",
+                      "Subscriptions",
+                  ],
+                  "steps": [
+                      "Identify a real problem.",
+                      "Research the market.",
+                      "Create a simple offer.",
+                      "Test with a small audience.",
+                      "Improve based on feedback.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Use AI as a Productivity Skill",
+                  "intro": "AI tools can improve productivity when they are used to support real skills rather than replace judgment.",
+                  "areas": [
+                      "Research",
+                      "Writing assistance",
+                      "Coding assistance",
+                      "Idea generation",
+                      "Data analysis",
+                      "Automation",
+                  ],
+                  "steps": [
+                      "Learn responsible AI use.",
+                      "Verify important information.",
+                      "Use AI to speed up repetitive work.",
+                      "Build practical examples.",
+                      "Combine AI with a valuable human skill.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Learn Basic Coding",
+                  "intro": "Programming can open opportunities in websites, automation, software and technical freelancing.",
+                  "areas": [
+                      "HTML",
+                      "CSS",
+                      "JavaScript",
+                      "Python",
+                      "APIs",
+                      "Automation",
+                  ],
+                  "steps": [
+                      "Choose one beginner-friendly language.",
+                      "Practice every day.",
+                      "Build small projects.",
+                      "Publish your work.",
+                      "Gradually solve harder problems.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Create Useful WordPress Websites",
+                  "intro": "WordPress skills can support website building, maintenance and digital-service work.",
+                  "areas": [
+                      "Website setup",
+                      "Themes",
+                      "Plugins",
+                      "SEO",
+                      "Performance",
+                      "Maintenance",
+                  ],
+                  "steps": [
+                      "Learn WordPress fundamentals.",
+                      "Build demonstration sites.",
+                      "Learn basic security.",
+                      "Practice performance optimization.",
+                      "Create a maintenance service.",
+                  ],
+                  "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85",
+              },
+              {
+                  "title": "Become a Virtual Assistant",
+                  "intro": "Virtual assistants help businesses with administrative and digital tasks remotely.",
+                  "areas": [
+                      "Email management",
+                      "Scheduling",
+               
