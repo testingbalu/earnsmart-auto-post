@@ -3,7 +3,7 @@ name: EarnSmart India Daily Post
 on:
   workflow_dispatch:
   schedule:
-    # Runs every day at 9:00 AM IST (03:30 UTC)
+    # 9:00 AM India time = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 jobs:
@@ -11,55 +11,218 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate and publish Telegram post
+      - name: Generate and publish daily post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
+
         run: |
           python - <<'PY'
           import os
           import urllib.parse
           import urllib.request
           import json
-          from datetime import datetime, timezone
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
 
-          token = os.environ["TELEGRAM_BOT_TOKEN"]
-          chat_id = os.environ["TELEGRAM_CHAT_ID"]
+          TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+          CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-          today = datetime.now(timezone.utc).strftime("%d %B %Y")
+          # India date
+          now = datetime.now(ZoneInfo("Asia/Kolkata"))
+          date = now.strftime("%d %B %Y")
 
-          message = f"""💰 EarnSmart India — Daily Earning Tip
+          # 7-day rotating content
+          posts = [
 
-          📅 {today}
+              {
+                  "title": "💻 Freelancing: Start With Your Skills",
+                  "body": """Freelancing can be a practical way to earn online if you have a useful skill.
 
-          💻 Freelancing: A Simple Way to Start Online
+🚀 How to start:
 
-          If you have a useful skill such as writing, graphic design, video editing, translation, or website work, freelancing can be a legitimate way to earn online.
+1️⃣ Choose one skill — writing, design, video editing, translation, coding, etc.
+2️⃣ Create 2–3 sample projects.
+3️⃣ Build a simple portfolio.
+4️⃣ Find genuine clients.
+5️⃣ Start with small projects.
+6️⃣ Collect reviews and improve your rates.
 
-          🚀 Start with these steps:
+💡 Tip: Don't try to learn 10 skills at once. Become useful at ONE skill first."""
+              },
 
-          1️⃣ Choose ONE skill.
-          2️⃣ Create 2–3 sample works.
-          3️⃣ Build a simple portfolio.
-          4️⃣ Find genuine clients.
-          5️⃣ Complete small projects and collect reviews.
-          6️⃣ Improve your skill and gradually increase your rates.
+              {
+                  "title": "🎓 Online Tutoring",
+                  "body": """If you are good at a subject, online tutoring can become a genuine income source.
 
-          ⚠️ Important:
-          Never pay someone just because they promise guaranteed income. Avoid schemes asking for deposits, OTPs, passwords, or private wallet keys.
+📚 You can teach:
 
-          💡 Real online income usually requires skill, effort and patience.
+• School subjects
+• English
+• Mathematics
+• Computer basics
+• Programming
+• Competitive-exam subjects
 
-          Follow EarnSmart India for more practical earning tips. 📲
+🚀 Start:
 
-          #EarnSmartIndia #OnlineEarning #Freelancing #WorkFromHome
-          """
+1️⃣ Choose your strongest subject.
+2️⃣ Prepare sample lessons.
+3️⃣ Decide your hourly rate.
+4️⃣ Find students through legitimate platforms or your network.
+5️⃣ Build your reputation through good teaching.
 
-          url = f"https://api.telegram.org/bot{token}/sendMessage"
+⚠️ Never pay a large upfront fee to someone promising guaranteed students."""
+              },
+
+              {
+                  "title": "🎥 YouTube: Build Before You Earn",
+                  "body": """YouTube can become an income source, but it usually takes time.
+
+💡 Possible content:
+
+• Tutorials
+• Educational videos
+• Reviews
+• News/commentary
+• Skills and how-to guides
+• Local-language content
+
+🚀 Start:
+
+1️⃣ Pick one niche.
+2️⃣ Make useful original videos.
+3️⃣ Upload consistently.
+4️⃣ Improve thumbnails and titles.
+5️⃣ Study what viewers actually watch.
+6️⃣ Monetize only when you meet the platform's requirements.
+
+⚠️ Don't believe anyone promising guaranteed YouTube income."""
+              },
+
+              {
+                  "title": "🔗 Affiliate Marketing",
+                  "body": """Affiliate marketing means recommending products or services and receiving a commission when eligible purchases happen through your referral.
+
+🚀 Basic process:
+
+1️⃣ Choose a genuine affiliate program.
+2️⃣ Choose products relevant to your audience.
+3️⃣ Create useful reviews or tutorials.
+4️⃣ Clearly disclose affiliate relationships.
+5️⃣ Share your referral link responsibly.
+6️⃣ Track which content performs best.
+
+⚠️ Never spam links or make false claims about products.
+
+💡 Focus on helping people make a good decision, not simply getting clicks."""
+              },
+
+              {
+                  "title": "📦 Sell Digital Products",
+                  "body": """Digital products can be created once and sold repeatedly.
+
+💡 Examples:
+
+• Templates
+• E-books
+• Study notes
+• Checklists
+• Design assets
+• Spreadsheet tools
+• Educational resources
+
+🚀 Start:
+
+1️⃣ Find a problem people have.
+2️⃣ Create a useful solution.
+3️⃣ Make the product professional.
+4️⃣ Set a reasonable price.
+5️⃣ Promote it through legitimate channels.
+6️⃣ Improve it using customer feedback.
+
+⚠️ Don't sell copyrighted material or someone else's work as your own."""
+              },
+
+              {
+                  "title": "✍️ Blogging & Content Writing",
+                  "body": """Writing is still a useful online skill.
+
+💻 You can work on:
+
+• Blog articles
+• Product descriptions
+• Website content
+• Social-media posts
+• Technical articles
+• Newsletters
+
+🚀 Start:
+
+1️⃣ Choose a topic you understand.
+2️⃣ Write 2–3 strong samples.
+3️⃣ Create a simple portfolio.
+4️⃣ Contact potential clients.
+5️⃣ Start with manageable projects.
+6️⃣ Build long-term client relationships.
+
+💡 Good writing solves a business problem — it isn't just about writing lots of words."""
+              },
+
+              {
+                  "title": "🏠 Remote Work: Look for Real Jobs",
+                  "body": """Remote jobs can provide legitimate income without requiring you to travel to an office.
+
+💼 Common areas include:
+
+• Customer support
+• Virtual assistance
+• Data-related work
+• Software development
+• Design
+• Sales
+• Content work
+
+🚀 Before applying:
+
+1️⃣ Prepare a professional CV.
+2️⃣ Create a good portfolio where relevant.
+3️⃣ Apply through legitimate company/job websites.
+4️⃣ Research the employer.
+5️⃣ Never pay for a job offer.
+
+🚨 Scam warning:
+A genuine employer should not demand money simply to give you a job."""
+              }
+          ]
+
+          # Rotate based on day of year
+          day_number = now.timetuple().tm_yday
+          post = posts[(day_number - 1) % len(posts)]
+
+          message = f"""💰 <b>EarnSmart India — Daily Earning Tip</b>
+
+📅 {date}
+
+<b>{post["title"]}</b>
+
+{post["body"]}
+
+⚠️ <b>Remember:</b>
+There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
+
+📲 Follow <b>EarnSmart India</b> for practical online earning tips.
+
+#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
+"""
+
+          url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
           data = urllib.parse.urlencode({
-              "chat_id": chat_id,
-              "text": message
+              "chat_id": CHAT_ID,
+              "text": message,
+              "parse_mode": "HTML",
+              "disable_web_page_preview": "true"
           }).encode()
 
           request = urllib.request.Request(
@@ -68,11 +231,19 @@ jobs:
               method="POST"
           )
 
-          with urllib.request.urlopen(request, timeout=30) as response:
-              result = json.loads(response.read().decode())
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.loads(response.read().decode())
 
-          if not result.get("ok"):
-              raise RuntimeError(result)
+              if not result.get("ok"):
+                  raise RuntimeError(result)
 
-          print("✅ Telegram post published successfully.")
+              print("✅ Daily Telegram post published successfully.")
+              print("📅 Date:", date)
+              print("📝 Topic:", post["title"])
+
+          except Exception as e:
+              print("❌ Telegram publishing failed:", e)
+              raise
+
           PY
