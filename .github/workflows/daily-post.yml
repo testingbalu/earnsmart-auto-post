@@ -3,7 +3,6 @@ name: EarnSmart India Daily Post
 on:
   workflow_dispatch:
   schedule:
-    # 9:00 AM India time = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 jobs:
@@ -15,6 +14,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
+
         run: |
           python - <<'PY'
           import os
@@ -30,206 +30,187 @@ jobs:
           now = datetime.now(ZoneInfo("Asia/Kolkata"))
           date = now.strftime("%d %B %Y")
 
-          # 7-day rotating content
           posts = [
               {
                   "title": "💻 Freelancing: Start With One Skill",
                   "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200",
-                  "body": """
-          🚀 <b>How to start:</b>
-
-          1️⃣ Choose ONE useful skill such as writing, design, video editing, translation or coding.
-
-          2️⃣ Create 2–3 sample projects.
-
-          3️⃣ Build a simple portfolio.
-
-          4️⃣ Contact genuine clients.
-
-          5️⃣ Start with small projects.
-
-          6️⃣ Collect reviews and improve your rates.
-
-          💡 <b>Tip:</b> Don't try to learn everything at once. Become useful at ONE skill first.
-
-          ⚠️ Never pay money for a guaranteed freelance job.
-                  """
+                  "body": [
+                      "🚀 <b>How to start:</b>",
+                      "",
+                      "1️⃣ Choose ONE useful skill such as writing, design, video editing, translation or coding.",
+                      "2️⃣ Create 2–3 sample projects.",
+                      "3️⃣ Build a simple portfolio.",
+                      "4️⃣ Contact genuine clients.",
+                      "5️⃣ Start with small projects.",
+                      "6️⃣ Collect reviews and improve your rates.",
+                      "",
+                      "💡 <b>Tip:</b> Don't try to learn everything at once. Become useful at ONE skill first.",
+                      "",
+                      "⚠️ Never pay money for a guaranteed freelance job."
+                  ]
               },
-
               {
                   "title": "🎓 Online Tutoring: Turn Knowledge Into Income",
                   "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200",
-                  "body": """
-          📚 <b>What can you teach?</b>
-
-          • School subjects
-          • English
-          • Mathematics
-          • Computer basics
-          • Programming
-          • Exam preparation
-
-          🚀 <b>How to start:</b>
-
-          1️⃣ Choose your strongest subject.
-          2️⃣ Prepare simple lessons.
-          3️⃣ Decide your hourly rate.
-          4️⃣ Find students through legitimate platforms or your network.
-          5️⃣ Build your reputation through good teaching.
-
-          ⚠️ Be careful with anyone asking for a large upfront payment to provide students.
-                  """
+                  "body": [
+                      "📚 <b>What can you teach?</b>",
+                      "",
+                      "• School subjects",
+                      "• English",
+                      "• Mathematics",
+                      "• Computer basics",
+                      "• Programming",
+                      "• Exam preparation",
+                      "",
+                      "🚀 <b>How to start:</b>",
+                      "",
+                      "1️⃣ Choose your strongest subject.",
+                      "2️⃣ Prepare simple lessons.",
+                      "3️⃣ Decide your hourly rate.",
+                      "4️⃣ Find students through legitimate channels.",
+                      "5️⃣ Build your reputation through good teaching.",
+                      "",
+                      "⚠️ Be careful with anyone asking for a large upfront payment."
+                  ]
               },
-
               {
                   "title": "📱 YouTube: Build an Audience With Useful Content",
                   "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200",
-                  "body": """
-          🎥 You don't need expensive equipment to start.
-
-          <b>Start with:</b>
-
-          1️⃣ Choose one topic you understand.
-          2️⃣ Create useful videos regularly.
-          3️⃣ Improve your thumbnails and titles.
-          4️⃣ Study what your audience likes.
-          5️⃣ Build trust before trying to monetize.
-
-          💡 Tutorials, educational content, reviews and practical guides can all be useful.
-
-          ⚠️ Don't buy fake views or subscribers.
-                  """
+                  "body": [
+                      "🎥 You don't need expensive equipment to start.",
+                      "",
+                      "1️⃣ Choose one topic you understand.",
+                      "2️⃣ Create useful videos regularly.",
+                      "3️⃣ Improve your thumbnails and titles.",
+                      "4️⃣ Study what your audience likes.",
+                      "5️⃣ Build trust before trying to monetize.",
+                      "",
+                      "💡 Tutorials, educational content and practical guides can be useful.",
+                      "",
+                      "⚠️ Don't buy fake views or subscribers."
+                  ]
               },
-
               {
                   "title": "🌐 Website & Blog: Build a Long-Term Asset",
                   "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200",
-                  "body": """
-          💻 A useful website can become a long-term online asset.
-
-          <b>Possible topics:</b>
-
-          • Technology
-          • Education
-          • Finance basics
-          • Jobs
-          • Tutorials
-          • Local information
-
-          🚀 <b>Basic plan:</b>
-
-          1️⃣ Pick one clear topic.
-          2️⃣ Publish genuinely useful content.
-          3️⃣ Learn basic SEO.
-          4️⃣ Build traffic gradually.
-          5️⃣ Explore legitimate monetization options.
-
-          💡 Don't expect instant income. Traffic and trust take time.
-                  """
+                  "body": [
+                      "💻 A useful website can become a long-term online asset.",
+                      "",
+                      "<b>Possible topics:</b>",
+                      "",
+                      "• Technology",
+                      "• Education",
+                      "• Finance basics",
+                      "• Jobs",
+                      "• Tutorials",
+                      "• Local information",
+                      "",
+                      "🚀 <b>Basic plan:</b>",
+                      "",
+                      "1️⃣ Pick one clear topic.",
+                      "2️⃣ Publish genuinely useful content.",
+                      "3️⃣ Learn basic SEO.",
+                      "4️⃣ Build traffic gradually.",
+                      "5️⃣ Explore legitimate monetization options.",
+                      "",
+                      "💡 Don't expect instant income. Traffic and trust take time."
+                  ]
               },
-
               {
                   "title": "🎨 Graphic Design: Sell a Useful Skill",
                   "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=1200",
-                  "body": """
-          🎨 If you enjoy designing, you can build a freelance service around it.
-
-          <b>Possible services:</b>
-
-          • Social media posts
-          • YouTube thumbnails
-          • Logos
-          • Posters
-          • Presentations
-          • Business graphics
-
-          🚀 <b>Start:</b>
-
-          1️⃣ Learn one design tool.
-          2️⃣ Create 5 strong samples.
-          3️⃣ Build a portfolio.
-          4️⃣ Contact genuine businesses.
-          5️⃣ Start with manageable projects.
-
-          💡 Quality and reliability are more important than promising unrealistic income.
-                  """
+                  "body": [
+                      "🎨 If you enjoy designing, you can build a freelance service around it.",
+                      "",
+                      "<b>Possible services:</b>",
+                      "",
+                      "• Social media posts",
+                      "• YouTube thumbnails",
+                      "• Logos",
+                      "• Posters",
+                      "• Presentations",
+                      "• Business graphics",
+                      "",
+                      "🚀 <b>Start:</b>",
+                      "",
+                      "1️⃣ Learn one design tool.",
+                      "2️⃣ Create 5 strong samples.",
+                      "3️⃣ Build a portfolio.",
+                      "4️⃣ Contact genuine businesses.",
+                      "5️⃣ Start with manageable projects."
+                  ]
               },
-
               {
                   "title": "📝 Content Writing: Get Paid for Useful Information",
                   "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1200",
-                  "body": """
-          ✍️ Businesses need useful written content.
-
-          <b>You can offer:</b>
-
-          • Blog articles
-          • Product descriptions
-          • Website content
-          • Social media captions
-          • Tutorials
-          • Email content
-
-          🚀 <b>How to begin:</b>
-
-          1️⃣ Select one niche.
-          2️⃣ Write 2–3 excellent samples.
-          3️⃣ Create a portfolio.
-          4️⃣ Contact legitimate clients.
-          5️⃣ Improve based on feedback.
-
-          ⚠️ Avoid clients who ask you to pay money before giving you guaranteed work.
-                  """
+                  "body": [
+                      "✍️ Businesses need useful written content.",
+                      "",
+                      "<b>You can offer:</b>",
+                      "",
+                      "• Blog articles",
+                      "• Product descriptions",
+                      "• Website content",
+                      "• Social media captions",
+                      "• Tutorials",
+                      "• Email content",
+                      "",
+                      "🚀 <b>How to begin:</b>",
+                      "",
+                      "1️⃣ Select one niche.",
+                      "2️⃣ Write 2–3 excellent samples.",
+                      "3️⃣ Create a portfolio.",
+                      "4️⃣ Contact legitimate clients.",
+                      "5️⃣ Improve based on feedback.",
+                      "",
+                      "⚠️ Avoid clients who ask you to pay before giving guaranteed work."
+                  ]
               },
-
               {
                   "title": "🏠 Remote Work: Find Legitimate Online Jobs",
                   "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200",
-                  "body": """
-          💼 Remote work can provide legitimate income when you have the right skills.
-
-          <b>Common areas include:</b>
-
-          • Customer support
-          • Virtual assistance
-          • Data-related work
-          • Software development
-          • Design
-          • Sales
-          • Content work
-
-          🚀 <b>Before applying:</b>
-
-          1️⃣ Prepare a professional CV.
-          2️⃣ Create a portfolio where relevant.
-          3️⃣ Research the employer.
-          4️⃣ Apply through legitimate channels.
-          5️⃣ Never pay money to receive a guaranteed job.
-
-          🔴 <b>Scam warning:</b> Genuine employers normally don't demand money simply to give you a job.
-                  """
+                  "body": [
+                      "💼 Remote work can provide legitimate income when you have the right skills.",
+                      "",
+                      "<b>Common areas:</b>",
+                      "",
+                      "• Customer support",
+                      "• Virtual assistance",
+                      "• Data-related work",
+                      "• Software development",
+                      "• Design",
+                      "• Sales",
+                      "• Content work",
+                      "",
+                      "🚀 <b>Before applying:</b>",
+                      "",
+                      "1️⃣ Prepare a professional CV.",
+                      "2️⃣ Create a portfolio where relevant.",
+                      "3️⃣ Research the employer.",
+                      "4️⃣ Apply through legitimate channels.",
+                      "5️⃣ Never pay money to receive a guaranteed job.",
+                      "",
+                      "🔴 <b>Scam warning:</b> Genuine employers normally don't demand money simply to give you a job."
+                  ]
               }
           ]
 
-          # Select post based on day of year
           post = posts[(now.timetuple().tm_yday - 1) % len(posts)]
 
-          caption = f"""💰 <b>EarnSmart India — Daily Earning Tip</b>
+          body = "\n".join(post["body"])
 
-📅 {date}
+          caption = (
+              "💰 <b>EarnSmart India — Daily Earning Tip</b>\n\n"
+              f"📅 {date}\n\n"
+              f"<b>{post['title']}</b>\n\n"
+              f"{body}\n\n"
+              "💡 <b>Remember:</b>\n"
+              "There is no guaranteed easy-money method. "
+              "Legitimate online income normally requires skill, effort and consistency.\n\n"
+              "📢 Follow <b>EarnSmart India</b> for practical online earning tips.\n\n"
+              "#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs"
+          )
 
-<b>{post["title"]}</b>
-
-{post["body"].strip()}
-
-💡 <b>Remember:</b>
-There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort and consistency.
-
-📢 Follow <b>EarnSmart India</b> for practical online earning tips.
-
-#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs"""
-
-          # Telegram API
           url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
           data = urllib.parse.urlencode({
@@ -245,18 +226,13 @@ There is no guaranteed easy-money method. Legitimate online income normally requ
               method="POST"
           )
 
-          try:
-              with urllib.request.urlopen(request, timeout=60) as response:
-                  result = json.loads(response.read().decode())
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode())
 
-              if not result.get("ok"):
-                  raise RuntimeError(result)
+          if not result.get("ok"):
+              raise RuntimeError(result)
 
-              print("✅ Daily Telegram post published successfully.")
-              print("📅 Date:", date)
-              print("📝 Topic:", post["title"])
-
-          except Exception as e:
-              print("❌ Telegram publishing failed:", e)
-              raise
+          print("✅ Telegram post published successfully.")
+          print("📅 Date:", date)
+          print("📝 Topic:", post["title"])
           PY
