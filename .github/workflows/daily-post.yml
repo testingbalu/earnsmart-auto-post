@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC
+    # 9:00 AM India time = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 jobs:
@@ -20,368 +20,513 @@ jobs:
         run: |
           python - <<'PY'
           import os
+          import sys
+          import html
           import json
           import time
-          import html
           import urllib.request
-          import urllib.parse
+          import urllib.error
+          import uuid
           from datetime import datetime
           from zoneinfo import ZoneInfo
 
           # ============================================================
-          # EARN SMART INDIA - ADVANCED DAILY TELEGRAM SYSTEM
+          # CONFIGURATION
           # ============================================================
 
-          TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-          CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+          TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-          API = f"https://api.telegram.org/bot{TOKEN}"
+          if not TOKEN:
+              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
+              sys.exit(1)
 
-          # India time
+          if not CHAT_ID:
+              print("ERROR: TELEGRAM_CHAT_ID is missing.")
+              sys.exit(1)
+
+          # ============================================================
+          # INDIA DATE
+          # ============================================================
+
           now = datetime.now(ZoneInfo("Asia/Kolkata"))
-          date = now.strftime("%d %B %Y")
+          date_text = now.strftime("%d %B %Y")
 
-          print("=" * 60)
-          print("EarnSmart India Advanced Daily Post")
-          print("India time:", now.strftime("%Y-%m-%d %H:%M:%S"))
-          print("Date:", date)
-          print("=" * 60)
+          # Monday = 0 ... Sunday = 6
+          day_number = now.weekday()
 
           # ============================================================
-          # CONTENT DATABASE
+          # 7-DAY CONTENT ROTATION
           # ============================================================
 
           posts = [
 
               {
-                  "category": "💻 FREELANCING",
-                  "title": "Start Freelancing With One Useful Skill",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ 1–2 weeks to build basics",
-                  "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Freelancing can become a legitimate income source when you solve a real problem for a real client.",
-                  "steps": [
-                      "Choose ONE skill you can realistically learn.",
-                      "Create 2–3 sample projects.",
-                      "Build a simple portfolio.",
-                      "Contact genuine potential clients.",
-                      "Start with small projects.",
-                      "Collect reviews and improve your work."
+                  "title": "🌐 Website & Blog: Build a Long-Term Asset",
+                  "image": "https://picsum.photos/seed/earnsmart-website/1200/800",
+                  "intro": "💻 A useful website can become a long-term online asset.",
+                  "sections": [
+                      (
+                          "Possible topics",
+                          [
+                              "Technology",
+                              "Education",
+                              "Finance basics",
+                              "Jobs",
+                              "Tutorials",
+                              "Local information"
+                          ]
+                      ),
+                      (
+                          "🚀 Basic plan",
+                          [
+                              "Pick one clear topic.",
+                              "Publish genuinely useful content.",
+                              "Learn basic SEO.",
+                              "Build traffic gradually.",
+                              "Explore legitimate monetization options."
+                          ]
+                      )
                   ],
-                  "action": "Choose one skill today and create your first sample project.",
-                  "warning": "Never pay someone who guarantees you a freelance job."
+                  "warning": "Don't expect instant income. Traffic and trust take time."
               },
 
               {
-                  "category": "🎓 EDUCATION",
-                  "title": "Online Tutoring: Earn From What You Know",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ Can start after basic preparation",
-                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "If you are strong in a subject, tutoring can be a practical way to earn by helping other learners.",
-                  "steps": [
-                      "Choose your strongest subject.",
-                      "Prepare simple lessons.",
-                      "Create a short introduction about yourself.",
-                      "Decide a reasonable hourly rate.",
-                      "Find students through legitimate channels.",
-                      "Focus on teaching quality and feedback."
+                  "title": "💻 Freelancing: Start With One Useful Skill",
+                  "image": "https://picsum.photos/seed/earnsmart-freelancing/1200/800",
+                  "intro": "🚀 Freelancing can become an income source when you develop a useful skill and find genuine clients.",
+                  "sections": [
+                      (
+                          "Popular skills",
+                          [
+                              "Graphic design",
+                              "Video editing",
+                              "Content writing",
+                              "Web development",
+                              "Virtual assistance",
+                              "Data-related work"
+                          ]
+                      ),
+                      (
+                          "🚀 Getting started",
+                          [
+                              "Choose one skill.",
+                              "Practice regularly.",
+                              "Create 2–3 sample projects.",
+                              "Build a simple portfolio.",
+                              "Start with small legitimate projects."
+                          ]
+                      )
                   ],
-                  "action": "Prepare one 20-minute sample lesson today.",
-                  "warning": "Avoid anyone demanding a large upfront payment for guaranteed students."
+                  "warning": "Never pay money to someone promising a guaranteed freelance job."
               },
 
               {
-                  "category": "🌐 WEBSITE",
-                  "title": "Build a Website That Can Grow Over Time",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 1–3 months for a useful foundation",
-                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "A useful website can become a long-term digital asset if it consistently solves problems for visitors.",
-                  "steps": [
-                      "Pick one focused topic.",
-                      "Research what people actually search for.",
-                      "Publish genuinely useful articles.",
-                      "Learn basic SEO.",
-                      "Improve site speed and usability.",
-                      "Build traffic gradually."
+                  "title": "🏠 Remote Work: Find Legitimate Online Jobs",
+                  "image": "https://picsum.photos/seed/earnsmart-remote/1200/800",
+                  "intro": "💼 Remote work can provide legitimate income when you have the right skills.",
+                  "sections": [
+                      (
+                          "Common areas",
+                          [
+                              "Customer support",
+                              "Virtual assistance",
+                              "Data-related work",
+                              "Software development",
+                              "Design",
+                              "Sales",
+                              "Content work"
+                          ]
+                      ),
+                      (
+                          "🚀 Before applying",
+                          [
+                              "Prepare a professional CV.",
+                              "Create a portfolio where relevant.",
+                              "Apply through legitimate company websites or platforms.",
+                              "Research the employer.",
+                              "Never pay for a guaranteed job."
+                          ]
+                      )
                   ],
-                  "action": "Choose one topic and write an outline for your first useful article.",
-                  "warning": "Do not expect instant income. Traffic and trust normally take time."
+                  "warning": "Genuine employers normally don't demand money simply to give you a job."
               },
 
               {
-                  "category": "🏠 REMOTE WORK",
-                  "title": "How to Find Legitimate Remote Jobs",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ Start searching immediately",
-                  "image": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Remote work can provide legitimate income when you have useful skills and apply through trustworthy channels.",
-                  "steps": [
-                      "Prepare a professional CV.",
-                      "Create a portfolio if relevant.",
-                      "Search legitimate company career pages.",
-                      "Research the employer before applying.",
-                      "Customize your application.",
-                      "Keep records of applications."
+                  "title": "📱 Learn a Digital Skill Using Your Phone",
+                  "image": "https://picsum.photos/seed/earnsmart-phone/1200/800",
+                  "intro": "📚 A smartphone can be useful for learning skills that may later help you earn online.",
+                  "sections": [
+                      (
+                          "Skills to consider",
+                          [
+                              "Canva design",
+                              "Video editing",
+                              "Content writing",
+                              "Social media management",
+                              "Basic coding",
+                              "Digital marketing"
+                          ]
+                      ),
+                      (
+                          "🚀 Simple routine",
+                          [
+                              "Choose one skill.",
+                              "Learn for 30–60 minutes daily.",
+                              "Practice with real examples.",
+                              "Create sample work.",
+                              "Improve based on feedback."
+                          ]
+                      )
                   ],
-                  "action": "Update your CV and apply to three relevant positions.",
-                  "warning": "A genuine employer normally does not require money simply to give you a job."
+                  "warning": "Learning takes time. Avoid courses that promise guaranteed income."
               },
 
               {
-                  "category": "🛒 ONLINE SELLING",
-                  "title": "Start Online Selling Without Buying Huge Inventory",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 1–4 weeks for testing",
-                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Online selling can work when you understand customer demand and carefully control your costs.",
-                  "steps": [
-                      "Choose a product category.",
-                      "Research competitors.",
-                      "Calculate product, delivery and platform costs.",
-                      "Test demand with a small quantity.",
-                      "Use clear product photos.",
-                      "Track every sale and expense."
+                  "title": "🛒 Online Selling: Start Small",
+                  "image": "https://picsum.photos/seed/earnsmart-selling/1200/800",
+                  "intro": "📦 Selling useful products or services online can become a legitimate business when managed carefully.",
+                  "sections": [
+                      (
+                          "Things to consider",
+                          [
+                              "Choose a product people actually need.",
+                              "Compare supplier prices.",
+                              "Calculate delivery and platform costs.",
+                              "Use clear product photos.",
+                              "Provide honest descriptions."
+                          ]
+                      ),
+                      (
+                          "🚀 Start carefully",
+                          [
+                              "Begin with a small budget.",
+                              "Test demand first.",
+                              "Track every expense.",
+                              "Keep customer records.",
+                              "Reinvest only after understanding your margins."
+                          ]
+                      )
                   ],
-                  "action": "Research three products and compare their real profit margins.",
-                  "warning": "Do not spend heavily on inventory before testing demand."
+                  "warning": "Never assume every product or business model will be profitable."
               },
 
               {
-                  "category": "🤖 DIGITAL SKILLS",
-                  "title": "Learn Digital Skills Businesses Actually Need",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 2–8 weeks for fundamentals",
-                  "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Digital skills can create opportunities in employment, freelancing and small online businesses.",
-                  "steps": [
-                      "Choose one skill.",
-                      "Learn the fundamentals.",
-                      "Build real projects.",
-                      "Create a portfolio.",
-                      "Ask for feedback.",
-                      "Start offering the skill."
+                  "title": "🎨 Turn a Skill Into a Simple Service",
+                  "image": "https://picsum.photos/seed/earnsmart-service/1200/800",
+                  "intro": "💡 One practical skill can sometimes be packaged into a simple service for individuals or small businesses.",
+                  "sections": [
+                      (
+                          "Example services",
+                          [
+                              "Poster design",
+                              "Short video editing",
+                              "Website setup",
+                              "Social media posts",
+                              "Resume formatting",
+                              "Basic data entry"
+                          ]
+                      ),
+                      (
+                          "🚀 How to begin",
+                          [
+                              "Select one service.",
+                              "Create sample work.",
+                              "Set a clear starting price.",
+                              "Show your work professionally.",
+                              "Ask satisfied customers for reviews."
+                          ]
+                      )
                   ],
-                  "action": "Pick one digital skill and spend 30 minutes learning it today.",
-                  "warning": "Do not buy expensive courses simply because they promise guaranteed income."
+                  "warning": "Avoid copying other people's work or making unrealistic promises."
               },
 
               {
-                  "category": "📱 CONTENT CREATION",
-                  "title": "Build an Audience With Useful Content",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ Several weeks to build consistency",
-                  "image": "https://images.unsplash.com/photo-1542744095-fcf48d80b0fd?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Content creation can become valuable when you consistently provide information people genuinely want.",
-                  "steps": [
-                      "Choose one clear topic.",
-                      "Understand your target audience.",
-                      "Create useful short-form content.",
-                      "Maintain a consistent schedule.",
-                      "Study which topics perform well.",
-                      "Improve based on audience feedback."
+                  "title": "💰 Build Multiple Legitimate Income Skills",
+                  "image": "https://picsum.photos/seed/earnsmart-skills/1200/800",
+                  "intro": "📈 A stronger long-term strategy is to build useful skills instead of searching for instant-money schemes.",
+                  "sections": [
+                      (
+                          "Useful areas",
+                          [
+                              "Freelancing",
+                              "Content creation",
+                              "Websites",
+                              "Digital services",
+                              "Online selling",
+                              "Remote employment"
+                          ]
+                      ),
+                      (
+                          "🚀 Long-term approach",
+                          [
+                              "Learn one skill first.",
+                              "Get practical experience.",
+                              "Build proof of your work.",
+                              "Find legitimate opportunities.",
+                              "Gradually add another complementary skill."
+                          ]
+                      )
                   ],
-                  "action": "Write five content ideas around one problem your audience has.",
-                  "warning": "Audience growth is not guaranteed and usually takes time."
-              },
+                  "warning": "There is no guaranteed easy-money method. Skill, effort and consistency matter."
+              }
+          ]
 
-              {
-                  "category": "📝 WRITING",
-                  "title": "Make Your Writing Skill More Valuable",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ Practice daily",
-                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Good writing is useful for websites, businesses, newsletters, product descriptions and many other projects.",
-                  "steps": [
-                      "Improve grammar and clarity.",
-                      "Study good online articles.",
-                      "Practice writing every day.",
-                      "Create sample articles.",
-                      "Learn basic SEO writing.",
-                      "Build a portfolio."
-                  ],
-                  "action": "Write a 500-word sample article today.",
-                  "warning": "Do not copy other people's articles and present them as your own."
-              },
+          post = posts[day_number % len(posts)]
 
-              {
-                  "category": "🎨 DESIGN",
-                  "title": "Start Learning Graphic Design",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 2–6 weeks for basics",
-                  "image": "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Businesses need visual content for social media, websites, presentations and marketing.",
-                  "steps": [
-                      "Learn basic design principles.",
-                      "Practice typography and spacing.",
-                      "Recreate simple designs for practice.",
-                      "Create original portfolio pieces.",
-                      "Learn one design tool properly.",
-                      "Ask for feedback."
-                  ],
-                  "action": "Create one social-media graphic from scratch today.",
-                  "warning": "Do not use copyrighted images or designs without permission."
-              },
+          # ============================================================
+          # HTML ESCAPING
+          # ============================================================
 
-              {
-                  "category": "🎬 VIDEO EDITING",
-                  "title": "Learn Video Editing for Online Work",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 2–8 weeks for basics",
-                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Video is widely used by businesses and creators, creating demand for editors who can deliver useful results.",
-                  "steps": [
-                      "Learn basic cutting and transitions.",
-                      "Understand audio levels.",
-                      "Practice captions and subtitles.",
-                      "Create three sample videos.",
-                      "Build a simple portfolio.",
-                      "Approach potential clients."
-                  ],
-                  "action": "Edit one 30-second sample video today.",
-                  "warning": "Avoid paying for fake client lists or guaranteed editing jobs."
-              },
+          def esc(value):
+              return html.escape(str(value), quote=False)
 
-              {
-                  "category": "🔎 SEO",
-                  "title": "Learn the Basics of SEO",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ Several weeks of practice",
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "SEO helps websites become easier to discover through search engines when implemented with useful content.",
-                  "steps": [
-                      "Learn search intent.",
-                      "Understand keywords.",
-                      "Write useful titles.",
-                      "Create helpful content.",
-                      "Improve internal linking.",
-                      "Study performance data."
-                  ],
-                  "action": "Find five questions people ask about your chosen topic.",
-                  "warning": "Be careful with anyone promising guaranteed Google rankings."
-              },
+          # ============================================================
+          # BUILD TELEGRAM CAPTION
+          # ============================================================
 
-              {
-                  "category": "📊 DATA",
-                  "title": "Learn Spreadsheet Skills",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ 1–4 weeks for fundamentals",
-                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Spreadsheet skills are useful in administration, business operations, finance and data-related work.",
-                  "steps": [
-                      "Learn formulas.",
-                      "Practice sorting and filtering.",
-                      "Learn basic charts.",
-                      "Understand tables.",
-                      "Practice with real datasets.",
-                      "Create sample reports."
-                  ],
-                  "action": "Build one simple monthly expense spreadsheet today.",
-                  "warning": "Do not claim professional data skills until you can actually demonstrate them."
-              },
+          parts = []
 
-              {
-                  "category": "💰 MONEY HABITS",
-                  "title": "Increase Savings Before Chasing Extra Income",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ Start today",
-                  "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Building better money habits can improve your financial position even before you find another income source.",
-                  "steps": [
-                      "Track your spending.",
-                      "Separate needs from wants.",
-                      "Reduce unnecessary recurring expenses.",
-                      "Build an emergency reserve.",
-                      "Avoid unnecessary high-interest debt.",
-                      "Learn before investing."
-                  ],
-                  "action": "Review your last seven days of spending.",
-                  "warning": "Be careful with schemes promising guaranteed high returns."
-              },
+          parts.append(
+              "<b>💰 EarnSmart India — Daily Earning Tip</b>"
+          )
 
-              {
-                  "category": "📣 SOCIAL MEDIA",
-                  "title": "Offer Social Media Help to Small Businesses",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 2–4 weeks for basics",
-                  "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Small businesses may need help creating posts, organizing content and maintaining their online presence.",
-                  "steps": [
-                      "Learn basic content planning.",
-                      "Study successful business pages.",
-                      "Create sample posts.",
-                      "Build a small portfolio.",
-                      "Contact relevant local businesses.",
-                      "Offer a clear service."
-                  ],
-                  "action": "Create five sample social-media posts for one business category.",
-                  "warning": "Never promise guaranteed followers, sales or viral results."
-              },
+          parts.append(
+              f"📅 {esc(date_text)}"
+          )
 
-              {
-                  "category": "🧑‍💻 WORDPRESS",
-                  "title": "Learn WordPress and Website Building",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ 2–6 weeks for fundamentals",
-                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "WordPress knowledge can be useful for building websites, blogs and online tools.",
-                  "steps": [
-                      "Learn the WordPress dashboard.",
-                      "Understand themes and plugins.",
-                      "Practice creating pages.",
-                      "Learn basic SEO.",
-                      "Build a small demo website.",
-                      "Create a portfolio."
-                  ],
-                  "action": "Build one simple five-page demo website.",
-                  "warning": "Avoid pirated themes and plugins because they can create security problems."
-              },
+          parts.append(
+              f"<b>{esc(post['title'])}</b>"
+          )
 
-              {
-                  "category": "🛠️ ONLINE TOOLS",
-                  "title": "Build a Useful Online Tool",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ 1–4 weeks depending on complexity",
-                  "image": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Simple online tools can attract visitors when they solve a specific problem quickly.",
-                  "steps": [
-                      "Find one repetitive problem.",
-                      "Design a simple solution.",
-                      "Build a working prototype.",
-                      "Make it mobile-friendly.",
-                      "Add useful explanations.",
-                      "Improve it using visitor feedback."
-                  ],
-                  "action": "Write down three small problems that could be solved with an online tool.",
-                  "warning": "Do not copy another website's proprietary code or content."
-              },
+          parts.append(
+              esc(post["intro"])
+          )
 
-              {
-                  "category": "📚 EBOOKS",
-                  "title": "Create a Useful Digital Guide",
-                  "difficulty": "🟢 Beginner",
-                  "time": "⏱️ 1–3 weeks",
-                  "image": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "A well-researched digital guide can package useful knowledge into a convenient format.",
-                  "steps": [
-                      "Choose a narrow topic.",
-                      "Research the subject carefully.",
-                      "Organize the information.",
-                      "Write original content.",
-                      "Proofread the guide.",
-                      "Create a professional cover."
-                  ],
-                  "action": "Create an outline with ten useful sections.",
-                  "warning": "Do not sell copied, misleading or low-quality material."
-              },
+          for heading, items in post["sections"]:
+              parts.append("")
+              parts.append(f"<b>{esc(heading)}:</b>")
 
-              {
-                  "category": "📸 PHOTOGRAPHY",
-                  "title": "Turn Photography Into a Skill Service",
-                  "difficulty": "🟡 Intermediate",
-                  "time": "⏱️ Practice continuously",
-                  "image": "https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?auto=format&fit=crop&w=1200&q=85",
-                  "intro": "Photography can become useful for products, businesses, events and social media.",
-                  "steps": [
-                      "Lea
+              for item in items:
+                  parts.append(f"• {esc(item)}")
+
+          parts.append("")
+          parts.append(
+              f"🚨 <b>Scam warning:</b> {esc(post['warning'])}"
+          )
+
+          parts.append("")
+          parts.append(
+              "💡 <b>Remember:</b>\n"
+              "Legitimate online income normally requires "
+              "skill, effort, consistency and patience."
+          )
+
+          parts.append("")
+          parts.append(
+              "📢 <b>Follow EarnSmart India</b> for practical "
+              "online earning tips."
+          )
+
+          parts.append("")
+          parts.append(
+              "#EarnSmartIndia #OnlineEarning "
+              "#WorkFromHome #OnlineJobs"
+          )
+
+          caption = "\n".join(parts)
+
+          # Telegram photo captions have a 1024-character limit.
+          # Keep a safe margin.
+          if len(caption) > 1000:
+              caption = caption[:997] + "..."
+
+          print("Selected topic:")
+          print(post["title"])
+          print("Caption length:", len(caption))
+
+          # ============================================================
+          # DOWNLOAD IMAGE
+          # ============================================================
+
+          image_path = "/tmp/earnsmart_daily.jpg"
+
+          print("Downloading image...")
+
+          image_request = urllib.request.Request(
+              post["image"],
+              headers={
+                  "User-Agent": "Mozilla/5.0"
+              }
+          )
+
+          try:
+              with urllib.request.urlopen(image_request, timeout=60) as response:
+                  image_data = response.read()
+
+              if not image_data:
+                  raise RuntimeError("Downloaded image is empty.")
+
+              with open(image_path, "wb") as image_file:
+                  image_file.write(image_data)
+
+              print("Image downloaded successfully.")
+              print("Image size:", len(image_data), "bytes")
+
+          except Exception as e:
+              print("ERROR: Image download failed:", e)
+              sys.exit(1)
+
+          # ============================================================
+          # TELEGRAM SEND PHOTO
+          # ============================================================
+
+          api_url = (
+              f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+          )
+
+          def make_field(name, value, boundary):
+              return (
+                  f"--{boundary}\r\n"
+                  f'Content-Disposition: form-data; name="{name}"\r\n'
+                  f"\r\n"
+                  f"{value}\r\n"
+              ).encode("utf-8")
+
+          def make_file_field(
+              name,
+              filename,
+              file_data,
+              content_type,
+              boundary
+          ):
+              header = (
+                  f"--{boundary}\r\n"
+                  f'Content-Disposition: form-data; '
+                  f'name="{name}"; filename="{filename}"\r\n'
+                  f"Content-Type: {content_type}\r\n"
+                  f"\r\n"
+              ).encode("utf-8")
+
+              return header + file_data + b"\r\n"
+
+          def send_telegram_photo():
+              boundary = "----EarnSmartIndia" + uuid.uuid4().hex
+
+              with open(image_path, "rb") as image_file:
+                  file_data = image_file.read()
+
+              body = b""
+
+              body += make_field(
+                  "chat_id",
+                  CHAT_ID,
+                  boundary
+              )
+
+              body += make_field(
+                  "caption",
+                  caption,
+                  boundary
+              )
+
+              body += make_field(
+                  "parse_mode",
+                  "HTML",
+                  boundary
+              )
+
+              body += make_file_field(
+                  "photo",
+                  "earnsmart-daily.jpg",
+                  file_data,
+                  "image/jpeg",
+                  boundary
+              )
+
+              body += (
+                  f"--{boundary}--\r\n"
+              ).encode("utf-8")
+
+              request = urllib.request.Request(
+                  api_url,
+                  data=body,
+                  method="POST",
+                  headers={
+                      "Content-Type":
+                          f"multipart/form-data; boundary={boundary}",
+                      "Content-Length": str(len(body)),
+                      "User-Agent": "EarnSmartIndia-GitHubActions/1.0"
+                  }
+              )
+
+              try:
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=90
+                  ) as response:
+
+                      raw = response.read().decode("utf-8")
+
+                  result = json.loads(raw)
+
+                  if not result.get("ok"):
+                      raise RuntimeError(
+                          "Telegram API returned an error: "
+                          + raw
+                      )
+
+                  print("")
+                  print("========================================")
+                  print("SUCCESS: Telegram post published.")
+                  print("========================================")
+                  print("Message ID:",
+                        result.get("result", {}).get("message_id"))
+
+                  return True
+
+              except urllib.error.HTTPError as e:
+                  error_body = e.read().decode(
+                      "utf-8",
+                      errors="replace"
+                  )
+
+                  print("")
+                  print("Telegram HTTP error:", e.code)
+                  print(error_body)
+
+                  return False
+
+              except Exception as e:
+                  print("Telegram request failed:", e)
+                  return False
+
+          # ============================================================
+          # RETRY
+          # ============================================================
+
+          success = False
+
+          for attempt in range(1, 4):
+
+              print(
+                  f"Sending Telegram post "
+                  f"(attempt {attempt}/3)..."
+              )
+
+              if send_telegram_photo():
+                  success = True
+                  break
+
+              if attempt < 3:
+                  print("Waiting 5 seconds before retry...")
+                  time.sleep(5)
+
+          if not success:
+              print("")
+              print("ERROR: Telegram publishing failed after 3 attempts.")
+              sys.exit(1)
+
+          print("")
+          print("Daily post completed successfully.")
+          PY
