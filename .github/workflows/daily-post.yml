@@ -1,529 +1,381 @@
-name: EarnSmart India Daily Post
-
-on:
-  workflow_dispatch:
-  schedule:
-    # 9:00 AM India time = 3:30 AM UTC
-    - cron: "30 3 * * *"
-
-jobs:
-  post-to-telegram:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Generate and publish daily post
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: "@LegitEarnIndia"
-
-        run: |
-          python - <<'PY'
-          import os
-          import json
-          import time
-          import urllib.parse
-          import urllib.request
-          import urllib.error
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-
-          TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-          CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-
-          # India time
-          now = datetime.now(ZoneInfo("Asia/Kolkata"))
-          date = now.strftime("%d %B %Y")
-
-          # ---------------------------------------------------------
-          # 14-DAY CONTENT ROTATION
-          # ---------------------------------------------------------
-
-          posts = [
-
-              {
-                  "title": "💻 Freelancing: Turn One Skill Into Income",
-                  "image": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 What is it?</b>
-          Freelancing means offering a useful skill to clients and getting paid for completed work.
-
-          <b>🔥 Skills you can start with:</b>
-          • Content writing
-          • Graphic design
-          • Video editing
-          • Translation
-          • WordPress
-          • Data entry
-
-          <b>🚀 Start today:</b>
-          1️⃣ Pick ONE skill.
-          2️⃣ Create 3 sample works.
-          3️⃣ Build a simple portfolio.
-          4️⃣ Contact genuine clients.
-          5️⃣ Start with small projects.
-
-          <b>💰 Income:</b>
-          Your earnings depend on skill, clients, workload and experience.
-
-          ⚠️ Never pay a fee for a "guaranteed job".
-                  """
-              },
-
-              {
-                  "title": "📱 YouTube: Build an Audience Before Chasing Money",
-                  "image": "https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 The idea:</b>
-          YouTube can become a long-term income source when you consistently publish useful original content.
-
-          <b>🎯 Good beginner niches:</b>
-          • Technology
-          • Education
-          • Tutorials
-          • Local information
-          • Product explainers
-          • Career guidance
-
-          <b>🚀 Start:</b>
-          1️⃣ Choose one niche.
-          2️⃣ Create useful videos.
-          3️⃣ Improve thumbnails and titles.
-          4️⃣ Publish consistently.
-          5️⃣ Study what viewers actually watch.
-
-          💰 Income can come from advertising, sponsorships, memberships and other legitimate methods when eligible.
-
-          ⚠️ Don't buy fake subscribers or views.
-                  """
-              },
-
-              {
-                  "title": "🌐 Website & Blog: Build a Long-Term Asset",
-                  "image": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 The idea:</b>
-          A useful website can become a long-term online asset.
-
-          <b>🎯 Possible topics:</b>
-          • Technology
-          • Education
-          • Jobs
-          • Tutorials
-          • Local information
-          • Useful tools
-
-          <b>🚀 Basic plan:</b>
-          1️⃣ Pick one clear topic.
-          2️⃣ Publish genuinely useful content.
-          3️⃣ Learn basic SEO.
-          4️⃣ Build traffic gradually.
-          5️⃣ Explore legitimate monetization.
-
-          💰 Possible income sources include advertising, affiliate marketing and services.
-
-          ⚠️ Traffic and trust take time. Avoid "instant income" promises.
-                  """
-              },
-
-              {
-                  "title": "🎨 Canva Design: Start With Simple Services",
-                  "image": "https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Beginner opportunity:</b>
-          Small businesses often need simple social-media graphics, posters and promotional designs.
-
-          <b>🛠️ You can create:</b>
-          • Instagram posts
-          • YouTube thumbnails
-          • Posters
-          • Flyers
-          • Business banners
-
-          <b>🚀 Start:</b>
-          1️⃣ Learn basic design principles.
-          2️⃣ Create 5 sample designs.
-          3️⃣ Make a portfolio.
-          4️⃣ Contact local businesses.
-          5️⃣ Offer a small starter package.
-
-          💰 Start small and increase rates as your portfolio improves.
-
-          ⚠️ Don't copy copyrighted designs or logos.
-                  """
-              },
-
-              {
-                  "title": "🎬 Video Editing: A Skill Businesses Need",
-                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Why it matters:</b>
-          Short-form videos are widely used by creators and businesses.
-
-          <b>🎯 Beginner services:</b>
-          • Reels editing
-          • Shorts editing
-          • Captions
-          • Basic transitions
-          • Product videos
-
-          <b>🚀 Action plan:</b>
-          1️⃣ Learn one editing app.
-          2️⃣ Create 3–5 samples.
-          3️⃣ Build a portfolio.
-          4️⃣ Contact creators and businesses.
-          5️⃣ Start with manageable projects.
-
-          💰 Your rate can increase with quality and experience.
-
-          ⚠️ Avoid promising unrealistic delivery times.
-                  """
-              },
-
-              {
-                  "title": "🧑‍🏫 Online Tutoring: Monetize What You Know",
-                  "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Who can try it?</b>
-          Students, graduates and professionals with strong knowledge in a subject can explore online tutoring.
-
-          <b>📚 Possible subjects:</b>
-          • Mathematics
-          • English
-          • Science
-          • Coding
-          • School subjects
-          • Exam preparation
-
-          <b>🚀 Start:</b>
-          1️⃣ Choose your strongest subject.
-          2️⃣ Prepare sample lessons.
-          3️⃣ Decide your availability.
-          4️⃣ Find students through legitimate channels.
-          5️⃣ Collect feedback.
-
-          💰 Earnings depend on subject, experience, hours and demand.
-
-          ⚠️ Never pay large upfront fees for promised students.
-                  """
-              },
-
-              {
-                  "title": "📝 Content Writing: Sell Your Writing Skill",
-                  "image": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 What can you write?</b>
-          • Blog articles
-          • Product descriptions
-          • Website content
-          • Social-media posts
-          • Email content
-
-          <b>🚀 Beginner plan:</b>
-          1️⃣ Choose a topic you understand.
-          2️⃣ Write 3 strong samples.
-          3️⃣ Create a portfolio.
-          4️⃣ Contact genuine clients.
-          5️⃣ Improve based on feedback.
-
-          💰 Better writing and specialization can help you charge more over time.
-
-          ⚠️ Never pay someone for a guaranteed writing job.
-                  """
-              },
-
-              {
-                  "title": "🌍 Translation: A Skill You Can Sell Online",
-                  "image": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 If you know two languages well:</b>
-          Translation can be a useful freelance service.
-
-          <b>🎯 Possible work:</b>
-          • Articles
-          • Subtitles
-          • Product descriptions
-          • Documents
-          • Social-media content
-
-          <b>🚀 Start:</b>
-          1️⃣ Select your language pair.
-          2️⃣ Create sample translations.
-          3️⃣ Build a portfolio.
-          4️⃣ Find legitimate clients.
-          5️⃣ Check every translation carefully.
-
-          💰 Rates depend on language, difficulty, specialization and client.
-
-          ⚠️ Don't accept suspicious documents or payment requests.
-                  """
-              },
-
-              {
-                  "title": "📊 Excel Skills: A Practical Freelancing Option",
-                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Learn useful spreadsheet skills:</b>
-          • Data cleaning
-          • Formulas
-          • Tables
-          • Charts
-          • Reports
-          • Basic automation
-
-          <b>🚀 Beginner plan:</b>
-          1️⃣ Learn spreadsheet basics.
-          2️⃣ Practice with real datasets.
-          3️⃣ Create sample reports.
-          4️⃣ Build a portfolio.
-          5️⃣ Look for genuine small projects.
-
-          💰 Specialized spreadsheet skills can become more valuable with experience.
-
-          ⚠️ Protect client data and never share confidential information.
-                  """
-              },
-
-              {
-                  "title": "🛍️ Sell Digital Products: Create Once, Sell Repeatedly",
-                  "image": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Digital product examples:</b>
-          • Templates
-          • Checklists
-          • Study materials
-          • Design assets
-          • Spreadsheet templates
-          • Simple guides
-
-          <b>🚀 Start:</b>
-          1️⃣ Find a genuine problem.
-          2️⃣ Create a useful solution.
-          3️⃣ Test it with a small audience.
-          4️⃣ Improve the product.
-          5️⃣ Sell through a legitimate platform.
-
-          💰 There is no guaranteed sales volume. Marketing and product quality matter.
-
-          ⚠️ Don't sell copyrighted or stolen material.
-                  """
-              },
-
-              {
-                  "title": "🔗 Affiliate Marketing: Understand It Before Starting",
-                  "image": "https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 How it works:</b>
-          You recommend a product or service using a tracked link and may receive a commission when eligible sales occur.
-
-          <b>🚀 Better approach:</b>
-          1️⃣ Choose a useful niche.
-          2️⃣ Learn the product.
-          3️⃣ Create honest reviews or tutorials.
-          4️⃣ Disclose affiliate relationships.
-          5️⃣ Focus on helping users.
-
-          💰 Commission varies by program and product.
-
-          ⚠️ Never promise guaranteed income from affiliate marketing.
-                  """
-              },
-
-              {
-                  "title": "🧑‍💻 WordPress Services: Build Websites for Clients",
-                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Businesses need websites.</b>
-
-          <b>🛠️ Beginner services:</b>
-          • WordPress setup
-          • Landing pages
-          • Blog setup
-          • Website maintenance
-          • Basic SEO
-          • Speed improvements
-
-          <b>🚀 Start:</b>
-          1️⃣ Learn WordPress fundamentals.
-          2️⃣ Build 2 demo websites.
-          3️⃣ Create a portfolio.
-          4️⃣ Contact local businesses.
-          5️⃣ Start with small projects.
-
-          💰 Pricing depends on complexity, service and experience.
-
-          ⚠️ Never promise rankings or traffic you cannot guarantee.
-                  """
-              },
-
-              {
-                  "title": "📸 Social Media Management: Help Small Businesses",
-                  "image": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 What does a social-media manager do?</b>
-          • Plan posts
-          • Create captions
-          • Design simple graphics
-          • Schedule content
-          • Track basic performance
-
-          <b>🚀 Start:</b>
-          1️⃣ Learn one platform well.
-          2️⃣ Create sample content.
-          3️⃣ Build a mini portfolio.
-          4️⃣ Approach local businesses.
-          5️⃣ Offer a clear monthly service.
-
-          💰 Rates depend on workload and results.
-
-          ⚠️ Never buy fake followers or engagement for clients.
-                  """
-              },
-
-              {
-                  "title": "🧰 Microtasks: Small Tasks, Realistic Expectations",
-                  "image": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 Microtasks can include:</b>
-          • Data labeling
-          • Transcription
-          • Research tasks
-          • Categorization
-          • Simple online tasks
-
-          <b>🚀 Before joining:</b>
-          1️⃣ Check the platform carefully.
-          2️⃣ Read payment terms.
-          3️⃣ Understand withdrawal rules.
-          4️⃣ Start with small tasks.
-          5️⃣ Track your time and earnings.
-
-          💰 Pay can be low and task availability can vary.
-
-          ⚠️ Avoid platforms demanding money, OTPs or wallet private keys.
-                  """
-              },
-
-              {
-                  "title": "🚀 Build a Skill, Not a Get-Rich-Quick Scheme",
-                  "image": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
-                  "body": """
-          <b>💡 The most reliable starting point:</b>
-          Build a skill that solves a real problem.
-
-          <b>🎯 Choose one:</b>
-          • Writing
-          • Design
-          • Editing
-          • Coding
-          • Tutoring
-          • Website work
-          • Translation
-
-          <b>📈 Simple formula:</b>
-          Skill → Portfolio → Clients → Experience → Better Rates
-
-          💰 Income normally grows gradually rather than instantly.
-
-          ⚠️ Be extremely careful with "guaranteed daily income", deposits, OTP requests and private-key requests.
-
-          <b>EarnSmart India:</b> Learn first. Earn legitimately. Grow gradually.
-                  """
-              }
-          ]
-
-          # Rotate automatically by day of year
-          post = posts[(now.timetuple().tm_yday - 1) % len(posts)]
-
-          # ---------------------------------------------------------
-          # BUILD TELEGRAM CAPTION
-          # ---------------------------------------------------------
-
-          caption = f"""💰 <b>EarnSmart India — Daily Earning Tip</b>
-
-          📅 {date}
-
-          <b>{post["title"]}</b>
-
-          {post["body"].strip()}
-
-          📌 <b>Remember:</b>
-          There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort and consistency.
-
-          📢 Follow <b>EarnSmart India</b> for practical online earning tips.
-
-          #EarnSmartIndia #OnlineEarning #WorkFromHome #Freelancing #OnlineJobs"""
-
-          # Telegram photo captions have a size limit.
-          if len(caption) > 1000:
-              caption = caption[:997] + "..."
-
-          url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-
-          data = urllib.parse.urlencode({
-              "chat_id": CHAT_ID,
-              "photo": post["image"],
-              "caption": caption,
-              "parse_mode": "HTML",
-              "disable_notification": "false"
-          }).encode("utf-8")
-
-          request = urllib.request.Request(
-              url,
-              data=data,
-              method="POST",
-              headers={
-                  "Content-Type": "application/x-www-form-urlencoded"
-              }
-          )
-
-          # ---------------------------------------------------------
-          # RETRY TELEGRAM REQUEST
-          # ---------------------------------------------------------
-
-          max_attempts = 3
-
-          for attempt in range(1, max_attempts + 1):
-
-              try:
-                  with urllib.request.urlopen(request, timeout=60) as response:
-                      raw = response.read().decode("utf-8")
-                      result = json.loads(raw)
-
-                  if result.get("ok"):
-                      print("✅ Telegram post published successfully.")
-                      print("📅 Date:", date)
-                      print("📰 Topic:", post["title"])
-                      print("🔁 Attempt:", attempt)
-                      break
-
-                  raise RuntimeError(
-                      "Telegram API returned an error: " + str(result)
-                  )
-
-              except urllib.error.HTTPError as e:
-
-                  error_body = e.read().decode("utf-8", errors="replace")
-
-                  print(
-                      f"⚠️ Telegram HTTP error "
-                      f"{e.code} on attempt {attempt}: {error_body}"
-                  )
-
-                  if attempt == max_attempts:
-                      raise
-
-                  time.sleep(5 * attempt)
-
-              except Exception as e:
-
-                  print(
-                      f"⚠️ Telegram publishing error "
-                      f"on attempt {attempt}: {e}"
-                  )
-
-                  if attempt == max_attempts:
-                      raise
-
-                  time.sleep(5 * attempt)
-
-          PY
+- name: Generate and publish daily post
+  env:
+    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    TELEGRAM_CHAT_ID: "@LegitEarnIndia"
+
+  run: |
+    python - <<'PY'
+    import os
+    import json
+    import urllib.request
+    import urllib.parse
+    import urllib.error
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+    CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+
+    # India date
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    date = now.strftime("%d %B %Y")
+
+    # -----------------------------------------
+    # DAILY CONTENT
+    # -----------------------------------------
+
+    posts = [
+
+        {
+            "title": "💻 Freelancing: Start With Your Skills",
+            "body": """
+    🚀 <b>How to start:</b>
+
+    1️⃣ Choose one useful skill.
+    2️⃣ Create 2–3 sample works.
+    3️⃣ Build a simple portfolio.
+    4️⃣ Contact genuine clients.
+    5️⃣ Start with small projects.
+    6️⃣ Collect reviews and improve.
+
+    💡 <b>Tip:</b>
+    Don't try to learn everything at once. Become useful at ONE skill first.
+
+    ⚠️ Never pay money for a guaranteed freelance job.
+            """
+        },
+
+        {
+            "title": "🎓 Online Tutoring: Turn Knowledge Into Income",
+            "body": """
+    📚 If you are good at a subject, online tutoring can become a genuine income source.
+
+    <b>You can teach:</b>
+
+    • School subjects
+    • English
+    • Mathematics
+    • Computer basics
+    • Programming
+    • Competitive-exam subjects
+
+    🚀 <b>Start:</b>
+
+    1️⃣ Choose your strongest subject.
+    2️⃣ Prepare simple lessons.
+    3️⃣ Decide your hourly rate.
+    4️⃣ Find students through legitimate channels.
+    5️⃣ Build your reputation through good teaching.
+
+    ⚠️ Avoid anyone promising guaranteed students for an upfront payment.
+            """
+        },
+
+        {
+            "title": "🌐 Website & Blog: Build a Long-Term Asset",
+            "body": """
+    💻 A useful website can become a long-term online asset.
+
+    <b>Possible topics:</b>
+
+    • Technology
+    • Education
+    • Finance basics
+    • Jobs
+    • Tutorials
+    • Local information
+
+    🚀 <b>Basic plan:</b>
+
+    1️⃣ Pick one clear topic.
+    2️⃣ Publish genuinely useful content.
+    3️⃣ Learn basic SEO.
+    4️⃣ Build traffic gradually.
+    5️⃣ Explore legitimate monetization options.
+
+    💡 Don't expect instant income. Traffic and trust take time.
+            """
+        },
+
+        {
+            "title": "📱 Learn a Digital Skill",
+            "body": """
+    🚀 Digital skills can create opportunities for freelance and remote work.
+
+    <b>Skills worth exploring:</b>
+
+    • Graphic design
+    • Video editing
+    • WordPress
+    • Web development
+    • Content writing
+    • Translation
+    • Social media management
+
+    🎯 Pick ONE skill and practise it consistently.
+
+    💡 Your goal should be to become useful enough that someone is willing to pay for your work.
+            """
+        },
+
+        {
+            "title": "🏠 Remote Work: Find Real Opportunities",
+            "body": """
+    💼 Remote work can provide legitimate income without travelling to an office.
+
+    <b>Common areas include:</b>
+
+    • Customer support
+    • Virtual assistance
+    • Data-related work
+    • Software development
+    • Design
+    • Sales
+    • Content work
+
+    🚀 <b>Before applying:</b>
+
+    1️⃣ Prepare a professional CV.
+    2️⃣ Create a portfolio where relevant.
+    3️⃣ Research the employer.
+    4️⃣ Apply through legitimate channels.
+    5️⃣ Never pay money to receive a job.
+
+    ⚠️ A genuine employer should not demand money simply to give you a job.
+            """
+        },
+
+        {
+            "title": "🛠️ Sell a Digital Service",
+            "body": """
+    💡 Instead of looking only for jobs, you can offer a useful service.
+
+    <b>Examples:</b>
+
+    • Logo design
+    • Video editing
+    • Website setup
+    • WordPress customization
+    • Resume formatting
+    • Translation
+    • Social media posts
+
+    🚀 Start small.
+
+    Create 2–3 examples of your work, show them to potential clients and improve your service based on feedback.
+
+    ⚠️ Avoid clients who ask you to pay money before giving you work.
+            """
+        },
+
+        {
+            "title": "💰 Build Income Slowly and Safely",
+            "body": """
+    📈 Sustainable online income usually doesn't happen overnight.
+
+    <b>A simple approach:</b>
+
+    1️⃣ Learn a useful skill.
+    2️⃣ Practise regularly.
+    3️⃣ Create proof of your ability.
+    4️⃣ Find genuine customers or employers.
+    5️⃣ Deliver good work.
+    6️⃣ Increase your rates as your experience grows.
+
+    💡 Avoid "double your money", guaranteed-income and deposit-based schemes.
+
+    🛡️ Protect your OTPs, passwords and private wallet keys.
+            """
+        }
+    ]
+
+    # -----------------------------------------
+    # SELECT DAILY POST
+    # -----------------------------------------
+
+    post = posts[(now.timetuple().tm_yday - 1) % len(posts)]
+
+    title = post["title"]
+
+    # -----------------------------------------
+    # CREATE IMAGE
+    # -----------------------------------------
+
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        W, H = 1200, 675
+
+        image = Image.new("RGB", (W, H), "#101820")
+        draw = ImageDraw.Draw(image)
+
+        # Background
+        for y in range(H):
+            r = int(15 + (y / H) * 25)
+            g = int(30 + (y / H) * 35)
+            b = int(45 + (y / H) * 45)
+            draw.line((0, y, W, y), fill=(r, g, b))
+
+        # Decorative circles
+        draw.ellipse((850, -150, 1350, 350), fill=(30, 90, 120))
+        draw.ellipse((-180, 480, 280, 900), fill=(20, 70, 90))
+
+        # Fonts
+        font_big = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            58
+        )
+
+        font_small = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            30
+        )
+
+        font_brand = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            34
+        )
+
+        # Brand
+        draw.text(
+            (70, 55),
+            "EarnSmart India",
+            font=font_brand,
+            fill="white"
+        )
+
+        draw.text(
+            (70, 105),
+            "DAILY EARNING TIP",
+            font=font_small,
+            fill="#B8DCE8"
+        )
+
+        # Title wrapping
+        words = title.split()
+        lines = []
+        line = ""
+
+        for word in words:
+            test = line + " " + word if line else word
+
+            if draw.textbbox((0, 0), test, font=font_big)[2] < 1050:
+                line = test
+            else:
+                lines.append(line)
+                line = word
+
+        if line:
+            lines.append(line)
+
+        y = 220
+
+        for line in lines[:4]:
+            draw.text(
+                (70, y),
+                line,
+                font=font_big,
+                fill="white"
+            )
+            y += 75
+
+        # Date
+        draw.text(
+            (70, 570),
+            date,
+            font=font_small,
+            fill="#D4E7ED"
+        )
+
+        # Bottom branding
+        draw.text(
+            (820, 585),
+            "#EarnSmartIndia",
+            font=font_small,
+            fill="white"
+        )
+
+        image.save("daily_post.jpg", "JPEG", quality=94)
+
+        print("✅ Image created")
+
+    except Exception as e:
+        print("❌ Image generation failed:", e)
+        raise
+
+    # -----------------------------------------
+    # TELEGRAM SEND PHOTO
+    # -----------------------------------------
+
+    caption = f"""
+💰 <b>EarnSmart India — Daily Earning Tip</b>
+
+📅 {date}
+
+<b>{title}</b>
+
+{post["body"].strip()}
+
+💡 <b>Remember:</b>
+There is no guaranteed easy-money method. Legitimate online income normally requires skill, effort, consistency and patience.
+
+📢 Follow <b>EarnSmart India</b> for practical online earning tips.
+
+#EarnSmartIndia #OnlineEarning #WorkFromHome #OnlineJobs
+"""
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+
+    boundary = "----EarnSmartBoundary"
+
+    def field(name, value):
+        return (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+            f"{value}\r\n"
+        ).encode()
+
+    body = b""
+
+    body += field("chat_id", CHAT_ID)
+    body += field("caption", caption)
+    body += field("parse_mode", "HTML")
+
+    body += (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="photo"; filename="daily_post.jpg"\r\n'
+        f"Content-Type: image/jpeg\r\n\r\n"
+    ).encode()
+
+    with open("daily_post.jpg", "rb") as f:
+        body += f.read()
+
+    body += f"\r\n--{boundary}--\r\n".encode()
+
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}"
+        }
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            result = json.loads(response.read().decode())
+
+        if not result.get("ok"):
+            raise RuntimeError(result)
+
+        print("✅ Telegram post published successfully")
+        print("📅 Date:", date)
+        print("📝 Topic:", title)
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode(errors="replace")
+        print("❌ Telegram HTTP error:", e.code)
+        print(error_body)
+        raise
+
+    PY
