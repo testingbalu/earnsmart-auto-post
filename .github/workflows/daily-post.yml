@@ -1,0 +1,115 @@
+name: EarnSmart India Daily Post
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 9:15 AM IST = 3:45 AM UTC
+    - cron: "45 3 * * *"
+
+jobs:
+  post-to-telegram:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate and publish Telegram post
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import urllib.request
+          import urllib.parse
+          import re
+
+          gemini_key = os.environ["GEMINI_API_KEY"]
+          telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
+
+          prompt = """
+          Create ONE high-quality Telegram post for the channel "EarnSmart India".
+
+          Topic:
+          Legitimate online earning methods.
+
+          Requirements:
+          - Give practical, realistic information.
+          - Never promise guaranteed income.
+          - Never promote gambling, betting, scams, fake investment schemes,
+            pyramid schemes, or suspicious deposit-and-withdrawal bots.
+          - Do not invent companies, earnings, statistics, or payment proofs.
+          - Explain who can use the method and how a beginner can start.
+          - Keep it useful and easy to read on a phone.
+          - Use emojis naturally.
+          - Maximum 1500 characters.
+          - End with:
+            #EarnSmartIndia #OnlineEarning
+
+          Return ONLY the final Telegram post.
+          """
+
+          # Gemini Interactions API
+          data = json.dumps({
+              "model": "gemini-3.7-flash",
+              "input": prompt
+          }).encode()
+
+          request = urllib.request.Request(
+              "https://generativelanguage.googleapis.com/v1beta/interactions",
+              data=data,
+              headers={
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": gemini_key
+              },
+              method="POST"
+          )
+
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode())
+
+          # Extract generated text
+          post = ""
+
+          if "output_text" in result:
+              post = result["output_text"]
+          else:
+              for item in result.get("output", []):
+                  if isinstance(item, dict):
+                      if item.get("type") == "text":
+                          post += item.get("text", "")
+
+          post = post.strip()
+
+          if not post:
+              raise Exception("Gemini returned no post.")
+
+          # Limit accidental oversized messages
+          post = post[:4000]
+
+          # Send to Telegram
+          telegram_url = (
+              f"https://api.telegram.org/bot{telegram_token}/sendMessage"
+          )
+
+          telegram_data = urllib.parse.urlencode({
+              "chat_id": "@LegitEarnIndia",
+              "text": post
+          }).encode()
+
+          telegram_request = urllib.request.Request(
+              telegram_url,
+              data=telegram_data,
+              method="POST"
+          )
+
+          with urllib.request.urlopen(telegram_request, timeout=30) as response:
+              telegram_result = json.loads(response.read().decode())
+
+          if not telegram_result.get("ok"):
+              raise Exception(
+                  "Telegram error: " + json.dumps(telegram_result)
+              )
+
+          print("Successfully posted to EarnSmart India.")
+          print(post)
+          PY
