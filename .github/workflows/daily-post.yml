@@ -3,8 +3,8 @@ name: EarnSmart India Daily Post
 on:
   workflow_dispatch:
   schedule:
-    # 9:15 AM IST
-    - cron: "45 3 * * *"
+    # Runs every day at 9:00 AM IST (03:30 UTC)
+    - cron: "30 3 * * *"
 
 jobs:
   post-to-telegram:
@@ -13,152 +13,66 @@ jobs:
     steps:
       - name: Generate and publish Telegram post
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: "@LegitEarnIndia"
         run: |
           python - <<'PY'
           import os
-          import json
-          import urllib.request
           import urllib.parse
-          import time
+          import urllib.request
+          import json
+          from datetime import datetime, timezone
 
-          GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-          TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+          token = os.environ["TELEGRAM_BOT_TOKEN"]
+          chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
-          prompt = """
-          You are the content writer for the Telegram channel EarnSmart India.
+          today = datetime.now(timezone.utc).strftime("%d %B %Y")
 
-          Create ONE useful educational post about legitimate ways to earn
-          money online.
+          message = f"""💰 EarnSmart India — Daily Earning Tip
 
-          Rules:
-          - Be realistic and honest.
-          - Never promise guaranteed income.
-          - Never promote gambling, betting, casinos or get-rich-quick schemes.
-          - Never promote scams, pyramid schemes or suspicious deposit schemes.
-          - Do not invent companies, earnings, statistics or payment proofs.
-          - Explain the method clearly.
-          - Tell beginners how they can start.
-          - Mention important requirements or limitations.
-          - Use simple English suitable for Indian readers.
-          - Use a few relevant emojis.
-          - Maximum 1200 characters.
-          - Do not use Markdown tables.
-          - End with these hashtags:
+          📅 {today}
 
-          #EarnSmartIndia #OnlineEarning
+          💻 Freelancing: A Simple Way to Start Online
 
-          Return ONLY the final Telegram post.
+          If you have a useful skill such as writing, graphic design, video editing, translation, or website work, freelancing can be a legitimate way to earn online.
+
+          🚀 Start with these steps:
+
+          1️⃣ Choose ONE skill.
+          2️⃣ Create 2–3 sample works.
+          3️⃣ Build a simple portfolio.
+          4️⃣ Find genuine clients.
+          5️⃣ Complete small projects and collect reviews.
+          6️⃣ Improve your skill and gradually increase your rates.
+
+          ⚠️ Important:
+          Never pay someone just because they promise guaranteed income. Avoid schemes asking for deposits, OTPs, passwords, or private wallet keys.
+
+          💡 Real online income usually requires skill, effort and patience.
+
+          Follow EarnSmart India for more practical earning tips. 📲
+
+          #EarnSmartIndia #OnlineEarning #Freelancing #WorkFromHome
           """
 
-          # Gemini Generate Content API
-          url = (
-              "https://generativelanguage.googleapis.com/v1beta/"
-              "models/gemini-3.5-flash-lite:generateContent"
-          )
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
 
-          payload = {
-              "contents": [
-                  {
-                      "parts": [
-                          {
-                              "text": prompt
-                          }
-                      ]
-                  }
-              ]
-          }
-
-          data = json.dumps(payload).encode("utf-8")
+          data = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": message
+          }).encode()
 
           request = urllib.request.Request(
               url,
               data=data,
-              headers={
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": GEMINI_API_KEY
-              },
               method="POST"
           )
 
-          # Retry Gemini request up to 3 times
-          result = None
+          with urllib.request.urlopen(request, timeout=30) as response:
+              result = json.loads(response.read().decode())
 
-          for attempt in range(3):
-              try:
-                  with urllib.request.urlopen(request, timeout=60) as response:
-                      result = json.loads(response.read().decode("utf-8"))
-                  break
-              except Exception as e:
-                  print(f"Gemini attempt {attempt + 1} failed: {e}")
-                  if attempt < 2:
-                      time.sleep(10)
+          if not result.get("ok"):
+              raise RuntimeError(result)
 
-          if result is None:
-              raise Exception("Gemini API failed after 3 attempts.")
-
-          # Check Gemini API error
-          if "error" in result:
-              raise Exception(
-                  "Gemini API error: " +
-                  json.dumps(result["error"])
-              )
-
-          # Extract generated text
-          try:
-              post = (
-                  result["candidates"][0]
-                  ["content"]["parts"][0]["text"]
-                  .strip()
-              )
-          except Exception:
-              raise Exception(
-                  "Could not extract Gemini response: " +
-                  json.dumps(result)
-              )
-
-          if not post:
-              raise Exception("Gemini returned an empty post.")
-
-          print("Gemini generated the post successfully.")
-
-          # Telegram Bot API
-          telegram_url = (
-              "https://api.telegram.org/bot"
-              + TELEGRAM_BOT_TOKEN
-              + "/sendMessage"
-          )
-
-          telegram_payload = urllib.parse.urlencode({
-              "chat_id": "@LegitEarnIndia",
-              "text": post
-          }).encode("utf-8")
-
-          telegram_request = urllib.request.Request(
-              telegram_url,
-              data=telegram_payload,
-              headers={
-                  "Content-Type":
-                  "application/x-www-form-urlencoded"
-              },
-              method="POST"
-          )
-
-          with urllib.request.urlopen(
-              telegram_request,
-              timeout=30
-          ) as response:
-              telegram_result = json.loads(
-                  response.read().decode("utf-8")
-              )
-
-          if not telegram_result.get("ok"):
-              raise Exception(
-                  "Telegram API error: " +
-                  json.dumps(telegram_result)
-              )
-
-          print("SUCCESS: Post published to EarnSmart India.")
-          print(post)
+          print("✅ Telegram post published successfully.")
           PY
