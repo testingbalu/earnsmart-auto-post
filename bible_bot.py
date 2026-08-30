@@ -2,12 +2,22 @@ import os
 import json
 import re
 import requests
+import sys
+import mimetypes
 from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFont
 
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-CHANNEL_ID = os.environ["BIBLE_CHANNEL_ID"]
+
+def _require_env(name):
+    v = os.environ.get(name)
+    if not v:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return v
+
+
+GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
+BOT_TOKEN = _require_env("TELEGRAM_BOT_TOKEN")
+CHANNEL_ID = _require_env("BIBLE_CHANNEL_ID")
 
 HISTORY_FILE = "posting_history.json"
 
@@ -196,8 +206,18 @@ def find_telugu_font():
         if os.path.exists(font):
             return font
 
+    # As a last resort, try to find any .ttf on system that contains 'Telugu' in name
+    try:
+        for root, dirs, files in os.walk('/usr/share/fonts'):
+            for f in files:
+                if 'Telugu' in f or 'telugu' in f:
+                    candidate = os.path.join(root, f)
+                    return candidate
+    except Exception:
+        pass
+
     raise FileNotFoundError(
-        "Telugu font not found."
+        "Telugu font not found. Please install Noto Sans Telugu or set an appropriate font path."
     )
 
 
@@ -314,7 +334,10 @@ def make_quote_image(
             font=verse_font
         )
 
-        if box[2] <= 850:
+        # box is (left, top, right, bottom) - compute width
+        w = box[2] - box[0]
+
+        if w <= 850:
             current = test
 
         else:
@@ -392,7 +415,7 @@ def generate_quote(history):
 
 JSON మాత్రమే ఇవ్వండి:
 
-{{
+{ {
   "text": "తెలుగులో చిన్నదైన, అర్థవంతమైన బైబిల్ వాక్యం",
   "reference": "గ్రంథం అధ్యాయం:వచనం",
   "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే చిన్న ఆలోచన"
@@ -444,7 +467,7 @@ Telugu Christians world కోసం ఒక మంచి తెలుగు Bibl
 
 JSON మాత్రమే:
 
-{{
+{ {
   "question": "తెలుగులో ప్రశ్న",
   "options": [
     "ఎంపిక 1",
@@ -491,6 +514,9 @@ def post_quote(data):
             f"bot{BOT_TOKEN}/sendPhoto"
         )
 
+        mime = mimetypes.guess_type(image_path)[0] or "image/png"
+        filename = os.path.basename(image_path)
+
         response = requests.post(
             url,
             data={
@@ -499,12 +525,15 @@ def post_quote(data):
                 "parse_mode": "HTML"
             },
             files={
-                "photo": photo
+                "photo": (filename, photo, mime)
             },
             timeout=60
         )
 
-    body = response.json()
+    try:
+        body = response.json()
+    except Exception:
+        body = {"ok": False, "description": response.text}
 
     if not body.get("ok"):
 
@@ -550,6 +579,7 @@ def post_quiz(data):
 
     explanation = explanation[:200]
 
+    # Telegram expects the single integer field correct_option_id for quiz polls
     telegram(
         "sendPoll",
         {
@@ -561,9 +591,7 @@ def post_quiz(data):
             ),
             "type": "quiz",
             "is_anonymous": "true",
-            "correct_option_ids": json.dumps(
-                [answer_index]
-            ),
+            "correct_option_id": str(answer_index),
             "explanation": explanation,
             "allows_multiple_answers": "false",
             "shuffle_options": "true"
@@ -577,80 +605,85 @@ def post_quiz(data):
 
 def main():
 
-    history = load_history()
+    try:
+        history = load_history()
 
-    today = datetime.now(
-        timezone.utc
-    ).strftime("%Y-%m-%d")
+        today = datetime.now(
+            timezone.utc
+        ).strftime("%Y-%m-%d")
 
-    post_type = os.environ.get(
-        "POST_TYPE",
-        "quiz"
-    ).lower()
+        post_type = os.environ.get(
+            "POST_TYPE",
+            "quiz"
+        ).lower()
 
-    print("===================================")
-    print("TELUGU BIBLE TELEGRAM BOT")
-    print("===================================")
-    print(f"Post type: {post_type}")
+        print("===================================")
+        print("TELUGU BIBLE TELEGRAM BOT")
+        print("===================================")
+        print(f"Post type: {post_type}")
 
-    if post_type == "quote":
+        if post_type == "quote":
 
-        data = generate_quote(
+            data = generate_quote(
+                history
+            )
+
+            post_quote(
+                data
+            )
+
+            history.append(
+                {
+                    "date": today,
+                    "type": "quote",
+                    "text": data["text"],
+                    "reference": data["reference"]
+                }
+            )
+
+            print(
+                "SUCCESS: Bible quote posted."
+            )
+
+        elif post_type == "quiz":
+
+            data = generate_quiz(
+                history
+            )
+
+            post_quiz(
+                data
+            )
+
+            history.append(
+                {
+                    "date": today,
+                    "type": "quiz",
+                    "question": data["question"]
+                }
+            )
+
+            print(
+                "SUCCESS: Bible quiz posted."
+            )
+
+        else:
+
+            raise ValueError(
+                "POST_TYPE must be quote or quiz."
+            )
+
+        save_history(
             history
         )
 
-        post_quote(
-            data
-        )
-
-        history.append(
-            {
-                "date": today,
-                "type": "quote",
-                "text": data["text"],
-                "reference": data["reference"]
-            }
-        )
-
         print(
-            "SUCCESS: Bible quote posted."
+            "Posting history saved."
         )
 
-    elif post_type == "quiz":
-
-        data = generate_quiz(
-            history
-        )
-
-        post_quiz(
-            data
-        )
-
-        history.append(
-            {
-                "date": today,
-                "type": "quiz",
-                "question": data["question"]
-            }
-        )
-
-        print(
-            "SUCCESS: Bible quiz posted."
-        )
-
-    else:
-
-        raise ValueError(
-            "POST_TYPE must be quote or quiz."
-        )
-
-    save_history(
-        history
-    )
-
-    print(
-        "Posting history saved."
-    )
+    except Exception as e:
+        print("ERROR:", str(e))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
