@@ -4,11 +4,14 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC
-    - cron: "30 3 * * *"
+    # 9:15 AM IST = 3:45 AM UTC
+    - cron: "45 3 * * *"
 
 permissions:
   contents: read
+
+env:
+  TELEGRAM_CHANNEL: "@LegitEarnIndia"
 
 jobs:
   post-to-telegram:
@@ -21,7 +24,7 @@ jobs:
       # ============================================================
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # ============================================================
       # PYTHON
@@ -33,13 +36,13 @@ jobs:
           python-version: "3.12"
 
       # ============================================================
-      # CREATE AND PUBLISH POST
+      # GENERATE + PUBLISH
       # ============================================================
 
-      - name: Generate and publish daily post
+      - name: Generate and publish EarnSmart India post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         shell: bash
 
         run: |
@@ -50,536 +53,576 @@ jobs:
           echo "EarnSmart India Telegram Publisher"
           echo "=================================================="
 
-          cat > /tmp/earnsmart_daily.py <<'PY'
+          # --------------------------------------------------------
+          # IMPORTANT:
+          # We intentionally DO NOT use TELEGRAM_CHAT_ID.
+          #
+          # The previously working system used:
+          # @LegitEarnIndia
+          # --------------------------------------------------------
+
+          cat > /tmp/earnsmart.py <<'PY'
 
           import os
           import sys
           import json
           import time
-          import html
           import random
+          import html
           import urllib.request
           import urllib.parse
+          import urllib.error
           from datetime import datetime, timezone
 
 
-          # ============================================================
+          # ==========================================================
           # CONFIGURATION
-          # ============================================================
+          # ==========================================================
 
           BOT_TOKEN = os.environ.get(
               "TELEGRAM_BOT_TOKEN",
               ""
           ).strip()
 
+          GEMINI_API_KEY = os.environ.get(
+              "GEMINI_API_KEY",
+              ""
+          ).strip()
 
-          # IMPORTANT:
-          # This avoids the previous "CHAT_ID secret missing" problem.
-          #
-          # If your Telegram channel has another public username,
-          # change ONLY this value.
-          #
-          # Example:
-          # CHANNEL = "@MyChannel"
-          #
-          CHANNEL = "@EarnSmartIndia"
+          TELEGRAM_CHANNEL = "@LegitEarnIndia"
 
+          GEMINI_MODEL = "gemini-3.7-flash"
 
           TELEGRAM_API = (
               f"https://api.telegram.org/bot{BOT_TOKEN}"
           )
 
+          GEMINI_API = (
+              "https://generativelanguage.googleapis.com/"
+              f"v1beta/models/{GEMINI_MODEL}:generateContent"
+          )
 
-          DOWNLOAD_TIMEOUT = 45
           TELEGRAM_TIMEOUT = 60
-          RETRIES = 3
+          GEMINI_TIMEOUT = 90
+          IMAGE_TIMEOUT = 45
 
-          # Telegram photo captions have a limited length.
-          MAX_CAPTION = 1000
+          MAX_TELEGRAM_MESSAGE = 4096
 
-
-          # ============================================================
-          # VALIDATE BOT TOKEN
-          # ============================================================
+          # ==========================================================
+          # VALIDATE SECRETS
+          # ==========================================================
 
           if not BOT_TOKEN:
-
               print(
                   "ERROR: TELEGRAM_BOT_TOKEN secret is missing."
               )
-
-              print(
-                  "Go to:"
-              )
-
-              print(
-                  "GitHub Repository -> Settings -> Secrets and variables "
-                  "-> Actions"
-              )
-
-              print(
-                  "and create TELEGRAM_BOT_TOKEN."
-              )
-
               sys.exit(1)
 
+          if not GEMINI_API_KEY:
+              print(
+                  "ERROR: GEMINI_API_KEY secret is missing."
+              )
+              sys.exit(1)
 
-          # ============================================================
-          # DAILY CONTENT LIBRARY
-          # ============================================================
+          print("Telegram bot token: FOUND")
+          print("Gemini API key    : FOUND")
+          print(
+              f"Telegram channel  : {TELEGRAM_CHANNEL}"
+          )
+
+
+          # ==========================================================
+          # DAILY TOPIC LIBRARY
+          # ==========================================================
 
           TOPICS = [
 
               {
-                  "title": "How to Start Freelancing in India",
-
-                  "category": "Freelancing",
-
-                  "intro": (
-                      "Freelancing means providing a service to clients "
-                      "without being a permanent employee. You can start "
-                      "with one useful skill instead of trying to learn "
-                      "everything at once."
-                  ),
-
-                  "skills": [
-                      "Writing",
-                      "Graphic design",
-                      "Video editing",
-                      "WordPress",
-                      "Web development",
-                      "Virtual assistance"
-                  ],
-
-                  "steps": [
-                      "Choose ONE service you can realistically learn.",
-                      "Create 3 useful sample projects.",
-                      "Put those samples into a simple portfolio.",
-                      "Create a professional profile.",
-                      "Apply only for projects matching your skill.",
-                      "Deliver good work and collect genuine reviews."
-                  ],
-
-                  "earning": (
-                      "Do not focus on a fixed daily income. A beginner "
-                      "may start with small projects and gradually increase "
-                      "pricing as skills, portfolio quality and client "
-                      "experience improve."
-                  ),
-
-                  "links": [
-                      (
-                          "LinkedIn Jobs",
-                          "https://www.linkedin.com/jobs/search/?location=india"
-                      ),
-                      (
-                          "Indeed India",
-                          "https://in.indeed.com/"
-                      ),
-                      (
-                          "Upwork",
-                          "https://www.upwork.com/work"
-                      ),
-                      (
-                          "Fiverr",
-                          "https://www.fiverr.com/"
-                      )
-                  ],
-
+                  "topic": "Freelancing for beginners",
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1556761175-b413da4baf72"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  )
-              },
-
-
-              {
-                  "title": "Learn SEO and Turn It Into a Skill",
-
-                  "category": "Digital Marketing",
-
-                  "intro": (
-                      "SEO helps websites become easier to discover through "
-                      "search engines. It is useful for bloggers, businesses, "
-                      "freelancers and website owners."
                   ),
-
-                  "skills": [
-                      "Keyword research",
-                      "Search intent",
-                      "Content writing",
-                      "On-page SEO",
-                      "Technical SEO",
-                      "Analytics"
-                  ],
-
-                  "steps": [
-                      "Learn what people actually search for.",
-                      "Understand search intent.",
-                      "Write genuinely useful content.",
-                      "Learn titles, headings and internal links.",
-                      "Learn basic technical SEO.",
-                      "Measure traffic and improve weak pages."
-                  ],
-
-                  "earning": (
-                      "SEO can be monetized through freelance services, "
-                      "website management, content work or your own websites. "
-                      "Results normally take time, so avoid anyone promising "
-                      "instant rankings or guaranteed income."
-                  ),
-
-                  "links": [
-                      (
-                          "LinkedIn Jobs",
-                          "https://www.linkedin.com/jobs/search/?keywords=SEO&location=India"
-                      ),
-                      (
-                          "Indeed SEO Jobs",
-                          "https://in.indeed.com/jobs?q=SEO&l=India"
-                      ),
+                  "resources": [
                       (
                           "Upwork",
-                          "https://www.upwork.com/work"
+                          "https://www.upwork.com/"
                       ),
                       (
                           "Fiverr",
-                          "https://www.fiverr.com/categories/online-marketing"
-                      )
+                          "https://www.fiverr.com/"
+                      ),
+                      (
+                          "Freelancer",
+                          "https://www.freelancer.com/"
+                      ),
                   ],
+              },
 
+              {
+                  "topic": "How to build an online portfolio",
                   "image": (
                       "https://images.unsplash.com/"
-                      "photo-1460925895917-afdab827c52f"
+                      "photo-1461749280684-dccba630e2f6"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  )
-              },
-
-
-              {
-                  "title": "How to Start Video Editing From Your Phone",
-
-                  "category": "Video Editing",
-
-                  "intro": (
-                      "Video editing is useful for YouTube creators, "
-                      "businesses and social-media pages. A phone can be "
-                      "enough to begin learning basic editing."
                   ),
-
-                  "skills": [
-                      "Cutting clips",
-                      "Captions",
-                      "Transitions",
-                      "Audio cleanup",
-                      "Short-form editing",
-                      "Thumbnail creation"
-                  ],
-
-                  "steps": [
-                      "Choose one editing application.",
-                      "Learn cutting and joining clips.",
-                      "Learn captions and basic audio.",
-                      "Create 5 sample videos.",
-                      "Create a simple portfolio.",
-                      "Contact creators or businesses with relevant offers."
-                  ],
-
-                  "earning": (
-                      "Beginners can start with small editing projects. "
-                      "Your price should depend on the complexity, length, "
-                      "number of revisions and turnaround time."
-                  ),
-
-                  "links": [
+                  "resources": [
                       (
-                          "LinkedIn Video Jobs",
-                          "https://www.linkedin.com/jobs/search/?keywords=video%20editor&location=India"
+                          "GitHub",
+                          "https://github.com/"
                       ),
                       (
-                          "Indeed Video Jobs",
-                          "https://in.indeed.com/jobs?q=video+editor&l=India"
+                          "Canva",
+                          "https://www.canva.com/"
+                      ),
+                      (
+                          "Notion",
+                          "https://www.notion.com/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Learn SEO and get SEO work",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1432888622747-4eb9a8efeb07"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Google Search Central",
+                          "https://developers.google.com/search"
+                      ),
+                      (
+                          "Google Search Console",
+                          "https://search.google.com/search-console/"
                       ),
                       (
                           "Upwork",
-                          "https://www.upwork.com/work"
+                          "https://www.upwork.com/"
                       ),
-                      (
-                          "Fiverr",
-                          "https://www.fiverr.com/categories/video-animation"
-                      )
                   ],
+              },
 
+              {
+                  "topic": "Video editing as a freelance skill",
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1574717024653-61fd2cf4d44d"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  )
-              },
-
-
-              {
-                  "title": "Start a WordPress Website Service",
-
-                  "category": "Web Development",
-
-                  "intro": (
-                      "WordPress can be used to create business websites, "
-                      "blogs, landing pages and online stores. Learning "
-                      "website setup and maintenance can become a useful "
-                      "freelance service."
                   ),
-
-                  "skills": [
-                      "WordPress",
-                      "Themes",
-                      "Plugins",
-                      "Page builders",
-                      "Basic SEO",
-                      "Website security"
-                  ],
-
-                  "steps": [
-                      "Learn the WordPress dashboard.",
-                      "Build a practice website.",
-                      "Learn pages, menus and forms.",
-                      "Learn basic performance and security.",
-                      "Build 3 demonstration websites.",
-                      "Create a portfolio and approach potential clients."
-                  ],
-
-                  "earning": (
-                      "Instead of promising a fixed income, package specific "
-                      "services such as website setup, maintenance, landing "
-                      "pages or content updates."
-                  ),
-
-                  "links": [
-                      (
-                          "LinkedIn WordPress Jobs",
-                          "https://www.linkedin.com/jobs/search/?keywords=WordPress&location=India"
-                      ),
-                      (
-                          "Indeed WordPress Jobs",
-                          "https://in.indeed.com/jobs?q=WordPress&l=India"
-                      ),
+                  "resources": [
                       (
                           "Upwork",
-                          "https://www.upwork.com/work"
+                          "https://www.upwork.com/"
                       ),
                       (
                           "Fiverr",
-                          "https://www.fiverr.com/categories/programming-tech"
-                      )
+                          "https://www.fiverr.com/"
+                      ),
+                      (
+                          "Canva",
+                          "https://www.canva.com/"
+                      ),
                   ],
-
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1547658719-da2b51169166"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  )
               },
 
-
               {
-                  "title": "Learn Graphic Design for Freelancing",
-
-                  "category": "Graphic Design",
-
-                  "intro": (
-                      "Graphic design can be used for social-media posts, "
-                      "thumbnails, posters, presentations and business "
-                      "marketing materials."
-                  ),
-
-                  "skills": [
-                      "Typography",
-                      "Layout",
-                      "Color basics",
-                      "Social media design",
-                      "Thumbnails",
-                      "Branding"
-                  ],
-
-                  "steps": [
-                      "Learn basic design principles.",
-                      "Choose one design tool.",
-                      "Recreate designs for practice.",
-                      "Create 5 original samples.",
-                      "Build a clean portfolio.",
-                      "Apply for projects matching your style."
-                  ],
-
-                  "earning": (
-                      "Start by offering a clearly defined service rather "
-                      "than saying you can do everything. For example: "
-                      "YouTube thumbnails, social posts or business flyers."
-                  ),
-
-                  "links": [
-                      (
-                          "LinkedIn Design Jobs",
-                          "https://www.linkedin.com/jobs/search/?keywords=graphic%20designer&location=India"
-                      ),
-                      (
-                          "Indeed Design Jobs",
-                          "https://in.indeed.com/jobs?q=graphic+designer&l=India"
-                      ),
-                      (
-                          "Upwork",
-                          "https://www.upwork.com/work"
-                      ),
-                      (
-                          "Fiverr",
-                          "https://www.fiverr.com/categories/graphics-design"
-                      )
-                  ],
-
+                  "topic": "Graphic design freelancing",
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1561070791-2526d30994b5"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  )
+                  ),
+                  "resources": [
+                      (
+                          "Fiverr",
+                          "https://www.fiverr.com/"
+                      ),
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Canva",
+                          "https://www.canva.com/"
+                      ),
+                  ],
               },
 
+              {
+                  "topic": "WordPress website services",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1547658719-da2b51169166"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "WordPress",
+                          "https://wordpress.org/"
+                      ),
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Fiverr",
+                          "https://www.fiverr.com/"
+                      ),
+                  ],
+              },
 
               {
-                  "title": "Build an Online Portfolio That Gets Attention",
-
-                  "category": "Career",
-
-                  "intro": (
-                      "A portfolio shows clients what you can actually do. "
-                      "You do not need dozens of projects. Three to five "
-                      "strong examples can be enough to demonstrate your ability."
+                  "topic": "Python and automation freelancing",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1515879218367-8466d910aaa4"
+                      "?auto=format&fit=crop&w=1200&q=85"
                   ),
-
-                  "skills": [
-                      "Project presentation",
-                      "Writing",
-                      "Design",
-                      "Case studies",
-                      "Professional communication"
+                  "resources": [
+                      (
+                          "GitHub",
+                          "https://github.com/"
+                      ),
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Freelancer",
+                          "https://www.freelancer.com/"
+                      ),
                   ],
+              },
 
-                  "steps": [
-                      "Choose your main skill.",
-                      "Create 3 to 5 strong examples.",
-                      "Explain the problem and your solution.",
-                      "Show the final result clearly.",
-                      "Add contact information.",
-                      "Update the portfolio whenever you create better work."
-                  ],
-
-                  "earning": (
-                      "A portfolio does not guarantee clients. Its purpose "
-                      "is to make your existing skills easier for employers "
-                      "and clients to evaluate."
+              {
+                  "topic": "Virtual assistant jobs",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1497215842964-222b430dc094"
+                      "?auto=format&fit=crop&w=1200&q=85"
                   ),
-
-                  "links": [
+                  "resources": [
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Fiverr",
+                          "https://www.fiverr.com/"
+                      ),
                       (
                           "LinkedIn Jobs",
-                          "https://www.linkedin.com/jobs/search/?location=india"
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Customer support jobs",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1525182008055-f88b95ff7980"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                      (
+                          "Indeed",
+                          "https://in.indeed.com/"
+                      ),
+                      (
+                          "Naukri",
+                          "https://www.naukri.com/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Data entry and Excel skills",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1551288049-bebda4e38f71"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Microsoft Excel",
+                          "https://www.microsoft.com/microsoft-365/excel"
+                      ),
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Freelancer",
+                          "https://www.freelancer.com/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Digital marketing skills",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1460925895917-afdab827c52f"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Google Skillshop",
+                          "https://skillshop.withgoogle.com/"
+                      ),
+                      (
+                          "HubSpot Academy",
+                          "https://academy.hubspot.com/"
+                      ),
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Content writing and copywriting",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1455390582262-044cdead277a"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                      (
+                          "Fiverr",
+                          "https://www.fiverr.com/"
+                      ),
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "Online tutoring",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1509062522246-3755977927d7"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Preply",
+                          "https://preply.com/"
+                      ),
+                      (
+                          "Udemy",
+                          "https://www.udemy.com/"
+                      ),
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "How to find legitimate remote jobs",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1521737711867-e3b97375f902"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
                       ),
                       (
                           "Indeed India",
                           "https://in.indeed.com/"
                       ),
                       (
-                          "Upwork",
-                          "https://www.upwork.com/work"
+                          "Naukri",
+                          "https://www.naukri.com/"
                       ),
-                      (
-                          "Fiverr",
-                          "https://www.fiverr.com/"
-                      )
                   ],
-
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1461749280684-dccba630e2f6"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  )
               },
 
-
               {
-                  "title": "Learn Excel and Data Skills",
-
-                  "category": "Data Skills",
-
-                  "intro": (
-                      "Excel and spreadsheet skills are useful in office "
-                      "work, sales, finance, operations, administration "
-                      "and many entry-level jobs."
+                  "topic": "AI tools for freelancers",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1677442136019-21780ecad995"
+                      "?auto=format&fit=crop&w=1200&q=85"
                   ),
-
-                  "skills": [
-                      "Formulas",
-                      "Sorting",
-                      "Filtering",
-                      "Lookup functions",
-                      "Pivot tables",
-                      "Charts"
-                  ],
-
-                  "steps": [
-                      "Learn basic formulas.",
-                      "Practice with sample datasets.",
-                      "Learn sorting and filtering.",
-                      "Learn lookup functions.",
-                      "Create a simple dashboard.",
-                      "Add your best projects to your portfolio."
-                  ],
-
-                  "earning": (
-                      "Excel can support both employment and freelance work. "
-                      "Useful services include spreadsheet cleanup, reports, "
-                      "data formatting and dashboard creation."
-                  ),
-
-                  "links": [
+                  "resources": [
                       (
-                          "LinkedIn Excel Jobs",
-                          "https://www.linkedin.com/jobs/search/?keywords=Excel&location=India"
+                          "Google AI",
+                          "https://ai.google.dev/"
                       ),
                       (
-                          "Indeed Excel Jobs",
-                          "https://in.indeed.com/jobs?q=excel&l=India"
+                          "GitHub",
+                          "https://github.com/"
                       ),
                       (
                           "Upwork",
-                          "https://www.upwork.com/work"
+                          "https://www.upwork.com/"
                       ),
-                      (
-                          "Fiverr",
-                          "https://www.fiverr.com/categories/business"
-                      )
                   ],
-
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1551288049-bebda4e38f71"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  )
               },
 
+              {
+                  "topic": "Social media management",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1611162617474-5b21e879e113"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Meta Blueprint",
+                          "https://www.facebook.com/business/learn"
+                      ),
+                      (
+                          "LinkedIn Jobs",
+                          "https://www.linkedin.com/jobs/"
+                      ),
+                      (
+                          "Upwork",
+                          "https://www.upwork.com/"
+                      ),
+                  ],
+              },
 
               {
-                  "title": "How to Find Legitimate Work From Home Jobs",
-
-                  "category": "Online Jobs",
-
-                  "intro": (
-                      "Work-from-home opportunities exist, but genuine jobs "
-                      "usually involve real work, skills and an identifiable "
-                      "employer or client."
+                  "topic": "YouTube content creation",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1536240478700-b869070f9279"
+                      "?auto=format&fit=crop&w=1200&q=85"
                   ),
+                  "resources": [
+                      (
+                          "YouTube Creators",
+                          "https://www.youtube.com/creators/"
+                      ),
+                      (
+                          "YouTube Studio",
+                          "https://studio.youtube.com/"
+                      ),
+                  ],
+              },
 
-                  "skills": [
-                      "Communication",
-                      "Computer skills",
-                      "Customer support",
-                    
+              {
+                  "topic": "Digital products and templates",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1554224155-6726b3ff858f"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Gumroad",
+                          "https://gumroad.com/"
+                      ),
+                      (
+                          "Canva",
+                          "https://www.canva.com/"
+                      ),
+                      (
+                          "Notion",
+                          "https://www.notion.com/"
+                      ),
+                  ],
+              },
+
+              {
+                  "topic": "How to avoid online earning scams",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1563013544-824ae1b704d3"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  ),
+                  "resources": [
+                      (
+                          "Cyber Crime Portal India",
+                          "https://cybercrime.gov.in/"
+                      ),
+                      (
+                          "RBI",
+                          "https://www.rbi.org.in/"
+                      ),
+                  ],
+              },
+
+          ]
+
+
+          # ==========================================================
+          # UTILITY
+          # ==========================================================
+
+          def escape_html(text):
+              return html.escape(
+                  str(text),
+                  quote=False
+              )
+
+
+          def request_json(
+              url,
+              payload=None,
+              headers=None,
+              timeout=60,
+              method="POST"
+          ):
+
+              data = None
+
+              if payload is not None:
+                  data = json.dumps(
+                      payload,
+                      ensure_ascii=False
+                  ).encode("utf-8")
+
+              request = urllib.request.Request(
+                  url=url,
+                  data=data,
+                  method=method,
+                  headers=headers or {}
+              )
+
+              try:
+
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=timeout
+                  ) as response:
+
+                      raw = response.read().decode(
+                          "utf-8",
+                          errors="replace"
+                      )
+
+                      return json.loads(raw)
+
+              except urllib.error.HTTPError as exc:
+
+                  body = exc.read().decode(
+                      "utf-8",
+                      errors="replace"
+                  )
+
+                  raise RuntimeError(
+                      f"HTTP {exc.code}
