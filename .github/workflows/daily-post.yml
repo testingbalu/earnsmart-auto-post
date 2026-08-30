@@ -19,28 +19,32 @@ jobs:
       # ============================================================
       # CHECKOUT
       # ============================================================
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ============================================================
       # PYTHON
       # ============================================================
+
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       # ============================================================
-      # GENERATE + PUBLISH
+      # TELEGRAM PUBLISHER
       # ============================================================
+
       - name: Generate and publish daily post
         shell: bash
+
         env:
+          # Only this value needs to be stored in GitHub Secrets.
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
-          # IMPORTANT:
-          # This is NOT a GitHub Secret.
-          # Put your Telegram channel username here.
+          # DO NOT create TELEGRAM_CHAT_ID secret.
+          # Keep your working Telegram channel username here.
           TELEGRAM_CHAT_ID: "@LegitEarnIndia"
 
         run: |
@@ -50,21 +54,35 @@ jobs:
           echo "EarnSmart India Telegram Publisher"
           echo "=================================================="
 
+          # ----------------------------------------------------------
+          # CHECK BOT TOKEN
+          # ----------------------------------------------------------
+
           if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
             echo "ERROR: TELEGRAM_BOT_TOKEN secret is missing."
+            echo ""
+            echo "Go to:"
+            echo "Settings -> Secrets and variables -> Actions"
+            echo ""
+            echo "Create:"
+            echo "TELEGRAM_BOT_TOKEN"
             exit 1
           fi
+
+          # ----------------------------------------------------------
+          # CHECK CHANNEL
+          # ----------------------------------------------------------
 
           if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "ERROR: Telegram channel username is missing."
+            echo "ERROR: Telegram channel is missing."
             exit 1
           fi
 
-          echo "Bot token: FOUND"
+          echo "Telegram bot token: FOUND"
           echo "Telegram target: ${TELEGRAM_CHAT_ID}"
 
           # ==========================================================
-          # PYTHON SCRIPT
+          # CREATE PYTHON SCRIPT
           # ==========================================================
 
           cat > /tmp/daily_post.py <<'PY'
@@ -80,7 +98,7 @@ jobs:
 
 
           # ==========================================================
-          # CONFIG
+          # CONFIGURATION
           # ==========================================================
 
           BOT_TOKEN = os.environ.get(
@@ -94,16 +112,18 @@ jobs:
           ).strip()
 
           if not BOT_TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN is missing.")
+              print("ERROR: TELEGRAM_BOT_TOKEN is empty.")
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: TELEGRAM_CHAT_ID is missing.")
+              print("ERROR: TELEGRAM_CHAT_ID is empty.")
               sys.exit(1)
 
-          API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+          TELEGRAM_API = (
+              f"https://api.telegram.org/bot{BOT_TOKEN}"
+          )
 
-          TIMEOUT = 60
+          REQUEST_TIMEOUT = 60
 
 
           # ==========================================================
@@ -391,6 +411,106 @@ jobs:
                       "photo-1454165804606-c3d57bc86b40"
                       "?auto=format&fit=crop&w=1200&q=85"
                   )
+              },
+
+              {
+                  "title": "Improve Your Communication Skills",
+                  "intro": (
+                      "Clear communication is valuable in almost every "
+                      "online job and freelance service."
+                  ),
+                  "steps": [
+                      "Write clearly.",
+                      "Avoid unnecessary jargon.",
+                      "Respond professionally.",
+                      "Confirm project requirements.",
+                      "Keep clients updated."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1551836022-d5d88e9218df"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Learn Customer Support Skills",
+                  "intro": (
+                      "Customer support is an accessible career area "
+                      "for people with communication and problem-solving skills."
+                  ),
+                  "steps": [
+                      "Practise professional communication.",
+                      "Learn common support tools.",
+                      "Understand escalation procedures.",
+                      "Improve typing accuracy.",
+                      "Apply through legitimate employers."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1525182008055-f88b95ff7980"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Learn Data Analysis Basics",
+                  "intro": (
+                      "Basic data skills are useful in business, operations, "
+                      "marketing and many office roles."
+                  ),
+                  "steps": [
+                      "Learn spreadsheet fundamentals.",
+                      "Practise cleaning datasets.",
+                      "Create simple charts.",
+                      "Learn basic statistics.",
+                      "Build sample dashboards."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1551288049-bebda4e38f71"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Learn SEO",
+                  "intro": (
+                      "Search engine optimization helps websites become "
+                      "more discoverable through useful and relevant content."
+                  ),
+                  "steps": [
+                      "Understand search intent.",
+                      "Create useful content.",
+                      "Learn basic technical SEO.",
+                      "Study analytics.",
+                      "Avoid spammy shortcuts."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1432888622747-4eb9a8efeb07"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Build Multiple Legitimate Income Skills",
+                  "intro": (
+                      "A stronger long-term strategy is to build useful "
+                      "skills instead of searching for instant-money schemes."
+                  ),
+                  "steps": [
+                      "Learn one useful skill.",
+                      "Get practical experience.",
+                      "Build proof of your work.",
+                      "Find legitimate opportunities.",
+                      "Add complementary skills gradually."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1556761175-b413da4baf72"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
               }
 
           ]
@@ -400,7 +520,7 @@ jobs:
           # HTML ESCAPE
           # ==========================================================
 
-          def esc(value):
+          def escape_text(value):
               return html.escape(
                   str(value),
                   quote=False
@@ -408,196 +528,24 @@ jobs:
 
 
           # ==========================================================
-          # CAPTION
+          # BUILD POST
           # ==========================================================
 
-          def make_caption(topic):
+          def build_caption(topic):
 
-              india_now = (
+              india_time = (
                   datetime.now(timezone.utc)
-                  + timedelta(hours=5, minutes=30)
+                  + timedelta(
+                      hours=5,
+                      minutes=30
+                  )
               )
 
-              date_text = india_now.strftime(
+              date_text = india_time.strftime(
                   "%d %B %Y"
               )
 
-              message = (
+              caption = (
                   "💰 <b>EarnSmart India</b>\n\n"
-                  f"📌 <b>{esc(topic['title'])}</b>\n\n"
-                  f"{esc(topic['intro'])}\n\n"
-                  "🚀 <b>How to start:</b>\n\n"
-              )
-
-              for i, step in enumerate(
-                  topic["steps"],
-                  1
-              ):
-                  message += (
-                      f"{i}. {esc(step)}\n"
-                  )
-
-              message += (
-                  "\n⚠️ <b>Scam Warning</b>\n\n"
-                  "Avoid guaranteed-income promises. "
-                  "Never pay money for a guaranteed job and "
-                  "never share OTPs, passwords or sensitive information.\n\n"
-                  "💡 <b>Remember:</b>\n"
-                  "Real online income normally requires useful skills, "
-                  "consistent effort and patience.\n\n"
-                  f"📅 {date_text}\n\n"
-                  "📢 Follow <b>EarnSmart India</b> for practical "
-                  "online earning tips.\n\n"
-                  "#EarnSmartIndia "
-                  "#OnlineEarning "
-                  "#FreelancingIndia "
-                  "#DigitalSkills"
-              )
-
-              if len(message) > 1024:
-                  message = (
-                      message[:1020]
-                      + "..."
-                  )
-
-              return message
-
-
-          # ==========================================================
-          # TELEGRAM REQUEST
-          # ==========================================================
-
-          def telegram_request(
-              method,
-              data
-          ):
-
-              url = (
-                  f"{API}/{method}"
-              )
-
-              encoded = urllib.parse.urlencode(
-                  data
-              ).encode("utf-8")
-
-              request = urllib.request.Request(
-                  url,
-                  data=encoded,
-                  method="POST",
-                  headers={
-                      "Content-Type":
-                          "application/x-www-form-urlencoded",
-                      "User-Agent":
-                          "EarnSmartIndia/1.0"
-                  }
-              )
-
-              with urllib.request.urlopen(
-                  request,
-                  timeout=TIMEOUT
-              ) as response:
-
-                  return json.loads(
-                      response.read().decode(
-                          "utf-8"
-                      )
-                  )
-
-
-          # ==========================================================
-          # DOWNLOAD IMAGE
-          # ==========================================================
-
-          def get_image(url):
-
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "User-Agent":
-                          "Mozilla/5.0"
-                  }
-              )
-
-              with urllib.request.urlopen(
-                  request,
-                  timeout=TIMEOUT
-              ) as response:
-
-                  data = response.read()
-
-              if not data:
-                  raise RuntimeError(
-                      "Image is empty."
-                  )
-
-              return data
-
-
-          # ==========================================================
-          # SEND PHOTO
-          # ==========================================================
-
-          def send_photo(
-              image_data,
-              caption
-          ):
-
-              boundary = (
-                  "----EarnSmart"
-                  + str(int(time.time()))
-              )
-
-              body = bytearray()
-
-
-              def field(
-                  name,
-                  value
-              ):
-
-                  body.extend(
-                      (
-                          f"--{boundary}\r\n"
-                          f'Content-Disposition: '
-                          f'form-data; name="{name}"'
-                          f"\r\n\r\n"
-                      ).encode()
-                  )
-
-                  body.extend(
-                      str(value).encode(
-                          "utf-8"
-                      )
-                  )
-
-                  body.extend(
-                      b"\r\n"
-                  )
-
-
-              field(
-                  "chat_id",
-                  CHAT_ID
-              )
-
-              field(
-                  "caption",
-                  caption
-              )
-
-              field(
-                  "parse_mode",
-                  "HTML"
-              )
-
-              body.extend(
-                  (
-                      f"--{boundary}\r\n"
-                      'Content-Disposition: '
-                      'form-data; '
-                      'name="photo"; '
-                      'filename="earnsmart.jpg"\r\n'
-                      "Content-Type: image/jpeg\r\n\r\n"
-                  ).encode()
-              )
-
+                  f"📌 <b>{escape_text(topic['title'])}</b>\n\n"
+              
