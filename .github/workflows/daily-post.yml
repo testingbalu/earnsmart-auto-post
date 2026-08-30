@@ -535,7 +535,42 @@ jobs:
                       "Check spelling and formatting before submitting."
                   ],
 
-                  "jobs": [
+                                    "jobs": [
                       "LinkedIn Jobs",
                       "Indeed",
-                      "N
+                      "Naukri"
+                  ],
+
+                  "links": [
+                      "https://www.linkedin.com/jobs",
+                      "https://www.indeed.com",
+                      "https://www.naukri.com"
+                  ]
+              }
+          ]
+
+          # ============================================================
+          # GENERATE POST
+          # ============================================================
+
+          import random
+          topic = random.choice(topics)
+
+          message = (
+              f"<b>{topic['title']}</b>\n"
+              f"\n"
+              f"{topic['intro']}\n"
+          )
+
+          result = telegram_request(
+              "sendPhoto",
+              {
+                  "chat_id": CHAT_ID,
+                  "photo": topic["image"],
+                  "caption": message,
+                  "parse_mode": "HTML"
+              }
+          )
+
+          print("Posted to Telegram successfully!")
+          PY
