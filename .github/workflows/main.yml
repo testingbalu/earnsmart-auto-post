@@ -180,4 +180,5 @@ jobs:
           selected_topic = topics[(start_index + slot) % len(topics)]
 
           print(f"India date: {date_str}")
-          print(f"Post slot: {slot+
+          print(f"Post slot: {slot+1}")
+          print(f"Selected topic: {
