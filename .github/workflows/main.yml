@@ -163,22 +163,4 @@ jobs:
                       "🔗 <b>Useful resources</b>\n"
                       "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
                       "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
-                      "🎯 <b>Today's action</b>\n"
-                      "Edit a 30‑second reel.\n\n"
-                      "────────────────\n"
-                      "<b>EarnSmart India</b>\n"
-                      "Learn • Work • Earn Safely\n"
-                      "────────────────"
-                  )
-              }
-              # Expand to 36 topics in same format
-          ]
-
-          # Rotation logic
-          day_index = today.timetuple().tm_yday - 1
-          start_index = (day_index * 3) % len(topics)
-          selected_topic = topics[(start_index + slot) % len(topics)]
-
-          print(f"India date: {date_str}")
-          print(f"Post slot: {slot+1}")
-          print(f"Selected topic: {
+                      "🎯 <b>Today's action</b
