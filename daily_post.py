@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import json
@@ -12,8 +13,8 @@ from datetime import datetime, timezone
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
-# Telegram channel username
-CHAT_ID = "@LegitEarnIndia"
+# Allow overriding the chat id via an environment variable/secret.
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or "@LegitEarnIndia"
 
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -633,69 +634,4 @@ topics = [
 # SELECT DAILY TOPIC
 # ============================================================
 
-# Rotate topics based on calendar day.
-today = datetime.now(timezone.utc).date()
-
-day_number = today.toordinal() % len(topics)
-
-topic = topics[day_number]
-
-
-# ============================================================
-# FORMAT MESSAGE
-# ============================================================
-
-def format_message(topic):
-    """
-    Format the topic data into a Telegram message.
-    """
-    message = f"<b>{topic['title']}</b>\n\n"
-    message += f"<i>{topic['intro']}</i>\n\n"
-
-    message += "<b>What is it?</b>\n"
-    for desc in topic['description']:
-        message += f"• {desc}\n"
-    message += "\n"
-
-    message += "<b>Key Skills to Learn:</b>\n"
-    for skill in topic['skills']:
-        message += f"✓ {skill}\n"
-    message += "\n"
-
-    message += "<b>Getting Started:</b>\n"
-    for i, step in enumerate(topic['steps'], 1):
-        message += f"{i}. {step}\n"
-    message += "\n"
-
-    message += "<b>Job Platforms:</b>\n"
-    for name, url in topic['jobs']:
-        message += f"• <a href='{url}'>{name}</a>\n"
-    message += "\n"
-
-    message += f"⚠️ <b>Warning:</b> {topic['warning']}\n"
-
-    return message
-
-
-# ============================================================
-# SEND MESSAGE TO TELEGRAM
-# ============================================================
-
-print("Formatting message...")
-
-message_text = format_message(topic)
-
-print("Sending message to Telegram channel...")
-
-telegram_request(
-    "sendPhoto",
-    {
-        "chat_id": CHAT_ID,
-        "photo": topic['image'],
-        "caption": message_text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": False
-    }
-)
-
-print("✅ Daily post sent successfully!")
+# Rotate to
