@@ -61,7 +61,8 @@ jobs:
                                   time.sleep(delay)
                                   continue
                               sys.exit(1)
-                          print(f"Telegram API success: message_id={result['result']['message_id']}")
+                          # use .get to avoid KeyError if result structure differs
+                          print(f"Telegram API success: message_id={result.get('result', {}).get('message_id')}")
                           return result
                   except Exception as e:
                       print(f"HTTP error (attempt {attempt}): {e}")
@@ -87,6 +88,7 @@ jobs:
               else:
                   slot = 0
           else:
+              # workflow_dispatch inputs are exposed as INPUT_<NAME>
               slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
 
           # Example topic database (expand to 36 topics)
@@ -157,10 +159,38 @@ jobs:
                       "💰 <b>Earning reality</b>\n"
                       "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
                       "⚠️ <b>Scam warning</b>\n"
-                      "Avoid fake “YouTube monetization” schemes.\n\n"
+                      "Avoid fake \"YouTube monetization\" schemes.\n\n"
                       "📅 <b>7-day action plan</b>\n"
                       "Day 1: Learn basics\nDay 2: Practise\nDay 3: Create samples\nDay 4: Build showreel\nDay 5: Apply\nDay 6: Network\nDay 7: Review progress\n\n"
                       "🔗 <b>Useful resources</b>\n"
                       "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
                       "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
-                      "🎯 <b>Today's action</b
+                      "🎯 <b>Today's action</b>\n"
+                      "Open your editor and make a 30-second cut from free footage.\n\n"
+                      "────────────────\n"
+                      "<b>EarnSmart India</b>\n"
+                      "Learn • Work • Earn Safely\n"
+                      "────────────────"
+                  )
+              }
+          ]
+
+          # Select topic safely
+          slot = max(0, slot) % len(topics)
+          topic = topics[slot]
+
+          # Prepare parameters for Telegram
+          params = {
+              'chat_id': CHAT_ID,
+              'photo': topic['image'],
+              'caption': topic['content'],
+              'parse_mode': 'HTML',
+              'disable_web_page_preview': 'true'
+          }
+
+          # Send photo with caption
+          telegram_request('sendPhoto', params)
+
+          # Done
+          print('Post sent for slot', slot)
+          PY
