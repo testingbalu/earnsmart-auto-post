@@ -61,8 +61,7 @@ jobs:
                                   time.sleep(delay)
                                   continue
                               sys.exit(1)
-                          # use .get to avoid KeyError if result structure differs
-                          print(f"Telegram API success: message_id={result.get('result', {}).get('message_id')}")
+                          print(f"Telegram API success: message_id={result['result']['message_id']}")
                           return result
                   except Exception as e:
                       print(f"HTTP error (attempt {attempt}): {e}")
@@ -88,45 +87,44 @@ jobs:
               else:
                   slot = 0
           else:
-              # workflow_dispatch inputs are exposed as INPUT_<NAME>
               slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
 
-          # Example topic database (expand to 36 topics)
+          # Advanced topic database (sample of 36 topics shown here)
           topics = [
               {
-                  "title": "Freelancing for Beginners",
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
+                  "title": "Excel Skills for Office Jobs",
+                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
                   "content": (
                       f"📅 {date_str}\n\n"
-                      "🎯 <b>Freelancing for Beginners</b>\n\n"
+                      "🎯 <b>Excel Skills for Office Jobs</b>\n\n"
                       "📌 <b>What is this work?</b>\n"
-                      "Offer one skill as a service online.\n\n"
+                      "Excel is used in Indian offices for data entry, analysis, and reporting.\n\n"
                       "🛠️ <b>Skills required</b>\n"
-                      "• Communication\n"
-                      "• Time management\n"
-                      "• Proposal writing\n\n"
+                      "• Basic formulas (SUM, AVERAGE)\n"
+                      "• Data sorting & filtering\n"
+                      "• Pivot tables\n"
+                      "• Charts & graphs\n\n"
                       "🚀 <b>How to start</b>\n"
-                      "1. Pick one skill\n"
-                      "2. Practise daily\n"
-                      "3. Build 3 sample projects\n"
-                      "4. Create a portfolio\n"
-                      "5. Apply only for relevant jobs\n\n"
+                      "1. Install Microsoft Excel or Google Sheets\n"
+                      "2. Learn formulas from free YouTube tutorials\n"
+                      "3. Practise with sample office data\n"
+                      "4. Create a mini project (sales report)\n"
+                      "5. Share your project on LinkedIn\n\n"
                       "💼 <b>Where to find legitimate work</b>\n"
-                      "<a href=\"https://www.upwork.com\">Upwork</a>\n"
-                      "<a href=\"https://www.fiverr.com\">Fiverr</a>\n"
-                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
-                      "<a href=\"https://www.naukri.com/freelance-jobs\">Naukri India</a>\n\n"
+                      "<a href=\"https://www.naukri.com/excel-jobs\">Naukri</a>\n"
+                      "<a href=\"https://www.linkedin.com/jobs/excel\">LinkedIn Jobs</a>\n"
+                      "<a href=\"https://internshala.com\">Internshala</a>\n\n"
                       "💰 <b>Earning reality</b>\n"
-                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
+                      "Entry‑level Excel jobs in India pay ₹8,000–₹20,000/month depending on company and workload.\n\n"
                       "⚠️ <b>Scam warning</b>\n"
-                      "Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.\n\n"
+                      "Avoid fake 'Excel typing jobs' that ask for deposits.\n\n"
                       "📅 <b>7-day action plan</b>\n"
-                      "Day 1: Practise\nDay 2: Build sample\nDay 3: Portfolio\nDay 4: Apply\nDay 5: Improve\nDay 6: Network\nDay 7: Review progress\n\n"
+                      "Day 1: Learn formulas\nDay 2: Practise sorting\nDay 3: Create charts\nDay 4: Build pivot table\nDay 5: Make a sales report\nDay 6: Share portfolio\nDay 7: Apply for jobs\n\n"
                       "🔗 <b>Useful resources</b>\n"
-                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
-                      "<a href=\"https://www.upwork.com/resources\">Upwork Resources</a>\n\n"
+                      "<a href=\"https://support.microsoft.com/en-us/excel\">Microsoft Excel Help</a>\n"
+                      "<a href=\"https://www.youtube.com/results?search_query=excel+tutorial\">YouTube Excel Tutorials</a>\n\n"
                       "🎯 <b>Today's action</b>\n"
-                      "Create your first sample project.\n\n"
+                      "Practise SUM and AVERAGE formulas on a dataset.\n\n"
                       "────────────────\n"
                       "<b>EarnSmart India</b>\n"
                       "Learn • Work • Earn Safely\n"
@@ -134,63 +132,35 @@ jobs:
                   )
               },
               {
-                  "title": "Learn Video Editing",
+                  "title": "Video Editing for YouTube Creators",
                   "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
                   "content": (
                       f"📅 {date_str}\n\n"
-                      "🎯 <b>Learn Video Editing</b>\n\n"
+                      "🎯 <b>Video Editing for YouTube Creators</b>\n\n"
                       "📌 <b>What is this work?</b>\n"
-                      "Video editors turn raw footage into finished videos.\n\n"
+                      "Editors cut, polish, and enhance raw footage for creators.\n\n"
                       "🛠️ <b>Skills required</b>\n"
-                      "• Video editing software\n"
+                      "• CapCut or DaVinci Resolve\n"
                       "• Storytelling\n"
-                      "• Audio editing\n"
-                      "• Captions\n\n"
+                      "• Audio mixing\n"
+                      "• Subtitles\n\n"
                       "🚀 <b>How to start</b>\n"
-                      "1. Install CapCut or DaVinci Resolve\n"
-                      "2. Practise with free footage\n"
-                      "3. Create 5 sample videos\n"
-                      "4. Build a showreel\n"
-                      "5. Offer services to creators\n\n"
+                      "1. Install free editing software\n"
+                      "2. Practise with stock footage\n"
+                      "3. Create 3 sample reels\n"
+                      "4. Build a showreel portfolio\n"
+                      "5. Offer services to small creators\n\n"
                       "💼 <b>Where to find legitimate work</b>\n"
                       "<a href=\"https://www.fiverr.com/categories/video-animation/video-editing\">Fiverr</a>\n"
                       "<a href=\"https://www.upwork.com/freelance-jobs/video-editing/\">Upwork</a>\n"
-                      "<a href=\"https://www.linkedin.com/jobs/\">LinkedIn Jobs</a>\n\n"
+                      "<a href=\"https://www.linkedin.com/jobs/video-editing\">LinkedIn Jobs</a>\n\n"
                       "💰 <b>Earning reality</b>\n"
-                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
+                      "Beginners in India often earn ₹5,000–₹15,000/month depending on workload.\n\n"
                       "⚠️ <b>Scam warning</b>\n"
-                      "Avoid fake \"YouTube monetization\" schemes.\n\n"
+                      "Avoid fake 'YouTube monetization' schemes.\n\n"
                       "📅 <b>7-day action plan</b>\n"
                       "Day 1: Learn basics\nDay 2: Practise\nDay 3: Create samples\nDay 4: Build showreel\nDay 5: Apply\nDay 6: Network\nDay 7: Review progress\n\n"
                       "🔗 <b>Useful resources</b>\n"
                       "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
                       "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
-                      "🎯 <b>Today's action</b>\n"
-                      "Open your editor and make a 30-second cut from free footage.\n\n"
-                      "────────────────\n"
-                      "<b>EarnSmart India</b>\n"
-                      "Learn • Work • Earn Safely\n"
-                      "────────────────"
-                  )
-              }
-          ]
-
-          # Select topic safely
-          slot = max(0, slot) % len(topics)
-          topic = topics[slot]
-
-          # Prepare parameters for Telegram
-          params = {
-              'chat_id': CHAT_ID,
-              'photo': topic['image'],
-              'caption': topic['content'],
-              'parse_mode': 'HTML',
-              'disable_web_page_preview': 'true'
-          }
-
-          # Send photo with caption
-          telegram_request('sendPhoto', params)
-
-          # Done
-          print('Post sent for slot', slot)
-          PY
+                      "🎯 <
