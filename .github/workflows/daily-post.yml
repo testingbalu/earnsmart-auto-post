@@ -4,15 +4,14 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:15 AM IST = 3:45 AM UTC
-    - cron: "45 3 * * *"
+    # 9:00 AM IST = 3:30 AM UTC
+    - cron: "30 3 * * *"
 
 permissions:
   contents: read
 
 jobs:
   post-to-telegram:
-    name: Publish Daily Post
     runs-on: ubuntu-latest
 
     steps:
@@ -20,58 +19,35 @@ jobs:
       # ============================================================
       # CHECKOUT
       # ============================================================
-
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v5
 
       # ============================================================
       # PYTHON
       # ============================================================
-
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       # ============================================================
-      # GENERATE + PUBLISH
+      # INSTALL REQUESTS
       # ============================================================
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
+      # ============================================================
+      # GENERATE AND PUBLISH
+      # ============================================================
       - name: Generate and publish daily post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         shell: bash
-
         run: |
-
           set -Eeuo pipefail
-
-          echo "=================================================="
-          echo "EarnSmart India Telegram Publisher"
-          echo "=================================================="
-
-          # ==========================================================
-          # VERIFY SECRETS
-          # ==========================================================
-
-          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
-            echo "ERROR: TELEGRAM_BOT_TOKEN secret is missing."
-            exit 1
-          fi
-
-          if [ -z "${GEMINI_API_KEY:-}" ]; then
-            echo "ERROR: GEMINI_API_KEY secret is missing."
-            exit 1
-          fi
-
-          echo "Telegram bot token: OK"
-          echo "Gemini API key: OK"
-
-          # ==========================================================
-          # CREATE PYTHON SCRIPT
-          # ==========================================================
 
           cat > /tmp/daily_post.py <<'PY'
 
@@ -80,745 +56,554 @@ jobs:
           import json
           import time
           import html
-          import random
-          import urllib.request
-          import urllib.parse
-          import urllib.error
+          import requests
           from datetime import datetime, timezone
 
 
-          # ==========================================================
-          # CONFIGURATION
-          # ==========================================================
+          # ============================================================
+          # TELEGRAM CONFIGURATION
+          # ============================================================
 
-          BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"].strip()
-          GEMINI_API_KEY = os.environ["GEMINI_API_KEY"].strip()
+          BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+          CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
-          # IMPORTANT:
-          # Keep this exactly as the Telegram destination used by
-          # the previously working version.
-          TELEGRAM_CHAT = "@LegitEarnIndia"
+          print("=" * 60)
+          print("EarnSmart India Telegram Publisher")
+          print("=" * 60)
+
+          if not BOT_TOKEN:
+              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
+              print("")
+              print("Create this GitHub Actions secret:")
+              print("TELEGRAM_BOT_TOKEN")
+              sys.exit(1)
+
+          if not CHAT_ID:
+              print("ERROR: TELEGRAM_CHAT_ID secret is missing.")
+              print("")
+              print("Create this GitHub Actions secret:")
+              print("TELEGRAM_CHAT_ID")
+              print("")
+              print("Example:")
+              print("@YourChannelUsername")
+              print("")
+              print("For a private channel, use the numeric chat ID.")
+              sys.exit(1)
+
 
           TELEGRAM_API = (
               f"https://api.telegram.org/bot{BOT_TOKEN}"
           )
 
-          GEMINI_API = (
-              "https://generativelanguage.googleapis.com/"
-              "v1beta/models/gemini-3.5-flash-lite:generateContent"
-          )
-
-          MAX_TELEGRAM_MESSAGE = 4096
-          TELEGRAM_RETRIES = 3
-          TELEGRAM_TIMEOUT = 45
-          GEMINI_TIMEOUT = 60
+          REQUEST_TIMEOUT = 60
+          MAX_CAPTION_LENGTH = 1024
 
 
-          # ==========================================================
-          # TOPIC LIBRARY
-          # ==========================================================
+          # ============================================================
+          # DAILY POST LIBRARY
+          # ============================================================
 
-          TOPICS = [
+          POSTS = [
 
-              "Legitimate work from home opportunities",
+              {
+                  "title": "How to Start an Online Portfolio (Beginner's Guide)",
 
-              "How to start freelancing with one skill",
+                  "intro": (
+                      "Want to show your skills to clients and get online "
+                      "work? An online portfolio helps you display your "
+                      "best work and build trust."
+                  ),
 
-              "How to build a professional freelance portfolio",
+                  "meaning": (
+                      "An online portfolio is a digital showcase of your "
+                      "best work. Whether you are a writer, designer, coder, "
+                      "or social media manager, it helps clients understand "
+                      "what you can actually do."
+                  ),
 
-              "Best digital skills to learn for online income",
+                  "steps": [
+                      "Choose your niche: Focus on your main skill.",
+                      "Select a free platform such as Notion, Canva, GitHub, or a free website builder.",
+                      "Add 3 to 5 strong sample projects.",
+                      "Write clear descriptions explaining the problem, solution, and result.",
+                      "Add professional contact details."
+                  ],
 
-              "How to find legitimate remote jobs",
+                  "tips": [
+                      "Keep your portfolio clean and mobile-friendly.",
+                      "Update it regularly as you complete new projects.",
+                      "Focus on quality rather than quantity."
+                  ],
 
-              "How to avoid online job scams",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1461749280684-dccba630e2f6"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to improve your CV for online jobs",
 
-              "How to build a professional LinkedIn profile",
+              {
+                  "title": "Start Freelancing With One Skill",
 
-              "How to start a small online service",
+                  "intro": (
+                      "You do not need ten skills to start freelancing. "
+                      "Choose one useful service and become good at it."
+                  ),
 
-              "How to earn through website development",
+                  "meaning": (
+                      "Freelancing means providing your skills to clients "
+                      "without necessarily working as a permanent employee."
+                  ),
 
-              "How to learn WordPress skills",
+                  "steps": [
+                      "Choose one service.",
+                      "Create 3 sample projects.",
+                      "Build a simple portfolio.",
+                      "Look for legitimate clients.",
+                      "Deliver quality work and collect genuine feedback."
+                  ],
 
-              "How to learn graphic design",
+                  "tips": [
+                      "Do not pay anyone for a guaranteed freelance job.",
+                      "Start small and improve your skills continuously.",
+                      "Never fake reviews or client results."
+                  ],
 
-              "How to learn video editing",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1553877522-43269d4ea984"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to learn digital marketing",
 
-              "How to learn SEO",
+              {
+                  "title": "Learn WordPress Website Development",
 
-              "How to learn Excel for jobs",
+                  "intro": (
+                      "WordPress skills can create opportunities in website "
+                      "development, maintenance and freelance services."
+                  ),
 
-              "How to learn data analysis",
+                  "meaning": (
+                      "WordPress is widely used for websites and can be "
+                      "learned gradually by building practical projects."
+                  ),
 
-              "How to become a virtual assistant",
+                  "steps": [
+                      "Learn the WordPress dashboard.",
+                      "Understand pages, posts, themes and plugins.",
+                      "Build a test website.",
+                      "Learn basic SEO and security.",
+                      "Create portfolio websites."
+                  ],
 
-              "How to start content creation",
+                  "tips": [
+                      "Practice by building real-looking websites.",
+                      "Do not install unnecessary plugins.",
+                      "Keep WordPress, themes and plugins updated."
+                  ],
 
-              "How to build a YouTube channel",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1547658719-da2b51169166"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to learn social media management",
 
-              "How to use AI tools productively",
+              {
+                  "title": "Learn Video Editing for Online Work",
 
-              "How to learn basic coding",
+                  "intro": (
+                      "Video editing is a useful digital skill for creators, "
+                      "businesses and online publishers."
+                  ),
 
-              "How to build simple automation",
+                  "meaning": (
+                      "Editors can work on short videos, YouTube videos, "
+                      "social media content, advertisements and tutorials."
+                  ),
 
-              "How to create digital products",
+                  "steps": [
+                      "Learn one editing application.",
+                      "Practice cutting and arranging clips.",
+                      "Learn captions and basic audio editing.",
+                      "Create 5 sample videos.",
+                      "Build a portfolio and approach legitimate clients."
+                  ],
 
-              "How to improve communication skills",
+                  "tips": [
+                      "Focus on storytelling rather than effects alone.",
+                      "Keep audio clear.",
+                      "Practice regularly."
+                  ],
 
-              "How to develop customer support skills",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1574717024653-61fd2cf4d44d"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to research an employer before applying",
 
-              "How to protect yourself from payment scams",
+              {
+                  "title": "Learn Digital Marketing Skills",
 
-              "How to identify fake earning apps",
+                  "intro": (
+                      "Digital marketing can become a useful career or "
+                      "freelance skill when learned through practical work."
+                  ),
 
-              "How to identify fake investment schemes",
+                  "meaning": (
+                      "Digital marketing includes activities such as SEO, "
+                      "social media, content marketing, email marketing "
+                      "and analytics."
+                  ),
 
-              "How to build multiple income skills",
+                  "steps": [
+                      "Learn basic SEO.",
+                      "Understand social media marketing.",
+                      "Practice content creation.",
+                      "Learn basic analytics.",
+                      "Build small case studies."
+                  ],
 
-              "How to turn a skill into a freelance service",
+                  "tips": [
+                      "Do not promise unrealistic results.",
+                      "Use genuine data in your portfolio.",
+                      "Keep learning as platforms change."
+                  ],
 
-              "How to create a simple online business plan",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1460925895917-afdab827c52f"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to build a consistent learning routine",
 
-              "How to get your first freelance client",
+              {
+                  "title": "Avoid Online Job Scams",
 
-              "How to price a freelance service",
+                  "intro": (
+                      "Fake job offers often promise guaranteed income and "
+                      "then ask victims to pay money or provide sensitive information."
+                  ),
 
-              "How to build trust with online clients",
+                  "meaning": (
+                      "A legitimate employer normally does not require you "
+                      "to pay money simply to receive a guaranteed job."
+                  ),
 
-              "How to create useful educational content",
+                  "steps": [
+                      "Research the employer.",
+                      "Check the company's official website.",
+                      "Verify that the vacancy actually exists.",
+                      "Never share OTPs or passwords.",
+                      "Avoid offers promising unrealistic income."
+                  ],
 
-              "How to improve productivity using digital tools",
+                  "tips": [
+                      "Never pay for a guaranteed job.",
+                      "Do not trust fake payment screenshots.",
+                      "Verify suspicious messages independently."
+                  ],
 
-              "How to start an online portfolio",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1563013544-824ae1b704d3"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to develop a valuable technical skill",
 
-              "How to find genuine online opportunities",
+              {
+                  "title": "Create and Sell Digital Products",
 
-              "How to avoid advance-fee scams",
+                  "intro": (
+                      "Digital products can include templates, guides, "
+                      "checklists, spreadsheets and educational resources."
+                  ),
 
-              "How to safely receive online payments",
+                  "meaning": (
+                      "A digital product solves a problem and can be delivered "
+                      "online without physical shipping."
+                  ),
 
-              "How to build sustainable online income",
+                  "steps": [
+                      "Find a genuine problem.",
+                      "Create a useful solution.",
+                      "Test the product.",
+                      "Improve it using feedback.",
+                      "Use legitimate sales channels."
+                  ],
 
-              "Skills that can improve your career",
+                  "tips": [
+                      "Solve a real problem.",
+                      "Do not copy other people's work.",
+                      "Be honest about what the product provides."
+                  ],
 
-              "How to start learning Python",
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1554224155-6726b3ff858f"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
 
-              "How to start learning JavaScript",
 
-              "How to build simple websites",
+              {
+                  "title": "Learn Excel for Better Job Opportunities",
+
+                  "intro": (
+                      "Excel skills are useful in administration, finance, "
+                      "sales, operations and many office jobs."
+                  ),
+
+                  "meaning": (
+                      "Spreadsheet knowledge can help you organize data, "
+                      "calculate results and create useful reports."
+                  ),
+
+                  "steps": [
+                      "Learn basic formulas.",
+                      "Practice sorting and filtering.",
+                      "Learn lookup functions.",
+                      "Create charts.",
+                      "Learn pivot tables."
+                  ],
+
+                  "tips": [
+                      "Practice using realistic datasets.",
+                      "Learn keyboard shortcuts.",
+                      "Build small spreadsheet projects."
+                  ],
+
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1551288049-bebda4e38f71"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+
+              {
+                  "title": "Build a Professional Freelance Portfolio",
+
+                  "intro": (
+                      "A portfolio gives potential clients evidence of what "
+                      "you can actually do."
+                  ),
+
+                  "meaning": (
+                      "A good portfolio is more than a list of skills. It "
+                      "shows examples, explanations and useful results."
+                  ),
+
+                  "steps": [
+                      "Choose your strongest work.",
+                      "Explain what you personally created.",
+                      "Show results when possible.",
+                      "Keep the design simple.",
+                      "Add a clear contact method."
+                  ],
+
+                  "tips": [
+                      "Keep the portfolio mobile-friendly.",
+                      "Update it regularly.",
+                      "Quality is more important than having many projects."
+                  ],
+
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1461749280684-dccba630e2f6"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+
+              {
+                  "title": "Use AI Tools to Improve Productivity",
+
+                  "intro": (
+                      "AI tools can help with writing, research, coding and "
+                      "organization when used responsibly."
+                  ),
+
+                  "meaning": (
+                      "AI can reduce repetitive work, but important "
+                      "information should still be checked by a human."
+                  ),
+
+                  "steps": [
+                      "Learn one AI tool properly.",
+                      "Use it for repetitive tasks.",
+                      "Check important information.",
+                      "Never expose confidential information.",
+                      "Measure whether it actually saves time."
+                  ],
+
+                  "tips": [
+                      "AI is a tool, not guaranteed income.",
+                      "Always verify important outputs.",
+                      "Use AI to improve your skills rather than replace learning."
+                  ],
+
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1677442136019-21780ecad995"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              }
 
           ]
 
 
-          # ==========================================================
-          # UTILITY FUNCTIONS
-          # ==========================================================
+          # ============================================================
+          # HTML ESCAPING
+          # ============================================================
 
-          def clean(value):
-              if value is None:
-                  return ""
-
-              return str(value).strip()
+          def esc(text):
+              return html.escape(str(text), quote=False)
 
 
-          def telegram_escape(value):
-              """
-              Escape HTML characters for Telegram HTML mode.
-              """
+          # ============================================================
+          # BUILD TELEGRAM CAPTION
+          # ============================================================
 
-              return html.escape(
-                  clean(value),
-                  quote=False
+          def build_caption(post, date_text):
+
+              lines = []
+
+              lines.append(
+                  "💰 <b>EarnSmart India</b>"
               )
 
+              lines.append("")
 
-          def http_json(
-              url,
-              method="GET",
-              data=None,
-              headers=None,
-              timeout=45
-          ):
-              """
-              Generic JSON HTTP helper.
-              """
-
-              request = urllib.request.Request(
-                  url=url,
-                  data=data,
-                  method=method,
-                  headers=headers or {},
+              lines.append(
+                  f"💰 <b>{esc(post['title'])}</b>"
               )
 
-              with urllib.request.urlopen(
-                  request,
-                  timeout=timeout
-              ) as response:
+              lines.append("")
 
-                  raw = response.read().decode(
-                      "utf-8",
-                      errors="replace"
+              lines.append(
+                  esc(post["intro"])
+              )
+
+              lines.append("")
+
+              lines.append(
+                  "🔷 <b>What it means</b>"
+              )
+
+              lines.append("")
+
+              lines.append(
+                  esc(post["meaning"])
+              )
+
+              lines.append("")
+
+              lines.append(
+                  "🔷 <b>How to start</b>"
+              )
+
+              lines.append("")
+
+              for number, step in enumerate(
+                  post["steps"],
+                  start=1
+              ):
+                  lines.append(
+                      f"{number}. {esc(step)}"
                   )
 
-                  return json.loads(raw)
+              lines.append("")
 
-
-          # ==========================================================
-          # GEMINI CONTENT GENERATION
-          # ==========================================================
-
-          def generate_post(topic):
-
-              today = datetime.now(
-                  timezone.utc
-              ).strftime("%d %B %Y")
-
-              prompt = f"""
-          You are the content editor for EarnSmart India.
-
-          Create ONE useful daily Telegram post.
-
-          Date:
-          {today}
-
-          Topic:
-          {topic}
-
-          Requirements:
-
-          1. Write for Indian users.
-          2. Use simple English.
-          3. Give practical information.
-          4. Do not promise guaranteed income.
-          5. Do not promote gambling.
-          6. Do not promote illegal activity.
-          7. Do not invent payment proofs.
-          8. Do not make unrealistic income claims.
-          9. Warn users about scams where relevant.
-          10. Keep the post useful and actionable.
-          11. Use Telegram-friendly formatting.
-          12. Maximum approximately 2800 characters.
-          13. Do not use Markdown tables.
-          14. Do not include a fake source.
-          15. Do not claim a company is legitimate unless the
-              statement is general and verifiable.
-          16. End with relevant hashtags.
-
-          Structure:
-
-          💰 TITLE
-
-          Short introduction.
-
-          🔹 What it means
-
-          Explain the topic.
-
-          🔹 How to start
-
-          Give 4-6 practical steps.
-
-          🔹 Important tips
-
-          Give useful advice.
-
-          ⚠️ Scam warning
-
-          Give a short warning if applicable.
-
-          💡 Final tip
-
-          Give one practical takeaway.
-
-          Hashtags:
-          #EarnSmartIndia plus 3-5 relevant hashtags.
-
-          Return ONLY the final post text.
-          """
-
-              payload = {
-                  "contents": [
-                      {
-                          "parts": [
-                              {
-                                  "text": prompt
-                              }
-                          ]
-                      }
-                  ],
-
-                  "generationConfig": {
-                      "temperature": 0.7,
-                      "topP": 0.9,
-                      "maxOutputTokens": 1800
-                  }
-              }
-
-              data = json.dumps(
-                  payload
-              ).encode("utf-8")
-
-              headers = {
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": GEMINI_API_KEY,
-                  "User-Agent":
-                      "EarnSmartIndia-GitHubActions/2.0",
-              }
-
-              for attempt in range(
-                  1,
-                  4
-              ):
-
-                  try:
-
-                      print(
-                          f"Gemini attempt "
-                          f"{attempt}/3..."
-                      )
-
-                      result = http_json(
-                          GEMINI_API,
-                          method="POST",
-                          data=data,
-                          headers=headers,
-                          timeout=GEMINI_TIMEOUT
-                      )
-
-                      candidates = result.get(
-                          "candidates",
-                          []
-                      )
-
-                      if not candidates:
-                          raise RuntimeError(
-                              "Gemini returned no candidates."
-                          )
-
-                      parts = (
-                          candidates[0]
-                          .get("content", {})
-                          .get("parts", [])
-                      )
-
-                      text_parts = []
-
-                      for part in parts:
-
-                          text = part.get(
-                              "text"
-                          )
-
-                          if text:
-                              text_parts.append(
-                                  text
-                              )
-
-                      text = "\n".join(
-                          text_parts
-                      ).strip()
-
-                      if not text:
-                          raise RuntimeError(
-                              "Gemini returned empty text."
-                          )
-
-                      return text
-
-                  except Exception as exc:
-
-                      print(
-                          f"Gemini error: {exc}"
-                      )
-
-                      if attempt < 3:
-                          time.sleep(
-                              attempt * 3
-                          )
-
-              raise RuntimeError(
-                  "Gemini generation failed."
+              lines.append(
+                  "🔷 <b>Important tips</b>"
               )
 
+              lines.append("")
 
-          # ==========================================================
-          # CLEAN GENERATED TEXT
-          # ==========================================================
+              for tip in post["tips"]:
+                  lines.append(
+                      f"• {esc(tip)}"
+                  )
 
-          def prepare_telegram_text(text):
+              lines.append("")
 
-              text = clean(text)
-
-              # Remove accidental Markdown code fences.
-              text = text.replace(
-                  "```",
-                  ""
-              ).strip()
-
-              # Telegram HTML mode needs these characters escaped.
-              text = html.escape(
-                  text,
-                  quote=False
+              lines.append(
+                  "⚠️ <b>Scam warning</b>"
               )
 
-              # Convert simple Markdown bold into Telegram HTML.
-              text = text.replace(
-                  "**",
-                  "<b>",
-                  1
-              ) if text.count("**") >= 2 else text
+              lines.append("")
 
-              if len(text) > MAX_TELEGRAM_MESSAGE:
+              lines.append(
+                  "Never pay money for a guaranteed job or "
+                  "guaranteed income. Never share OTPs, passwords "
+                  "or sensitive banking information with strangers."
+              )
 
-                  text = (
-                      text[
-                          :MAX_TELEGRAM_MESSAGE - 100
-                      ]
-                      .rsplit(
-                          "\n",
-                          1
-                      )[0]
+              lines.append("")
+
+              lines.append(
+                  "💡 <b>Final tip</b>"
+              )
+
+              lines.append("")
+
+              lines.append(
+                  "Start small, build one useful skill and improve "
+                  "your results consistently."
+              )
+
+              lines.append("")
+
+              lines.append(
+                  "#EarnSmartIndia "
+                  "#OnlineEarning "
+                  "#FreelancingIndia "
+                  "#DigitalSkills "
+                  "#WorkFromHome"
+              )
+
+              caption = "\n".join(lines)
+
+              # Telegram photo caption limit
+              if len(caption) > MAX_CAPTION_LENGTH:
+
+                  caption = (
+                      caption[:MAX_CAPTION_LENGTH - 100]
                       .rstrip()
+                      + "\n\n"
+                      "#EarnSmartIndia "
+                      "#OnlineEarning"
                   )
 
-                  text += (
-                      "\n\n"
-                      "📢 Follow @LegitEarnIndia"
-                  )
-
-              return text
+              return caption
 
 
-          # ==========================================================
-          # TELEGRAM API
-          # ==========================================================
+          # ============================================================
+          # DOWNLOAD IMAGE
+          # ============================================================
 
-          def telegram_send_message(text):
+          def download_image(url, filename):
 
-              url = (
-                  f"{TELEGRAM_API}/sendMessage"
-              )
+              print("")
+              print("Downloading image...")
+              print(url)
 
-              payload = {
-                  "chat_id": TELEGRAM_CHAT,
-                  "text": text,
-                  "parse_mode": "HTML",
-                  "disable_web_page_preview": True,
-              }
-
-              data = urllib.parse.urlencode(
-                  payload
-              ).encode("utf-8")
-
-              headers = {
-                  "Content-Type":
-                      "application/x-www-form-urlencoded",
-                  "User-Agent":
-                      "EarnSmartIndia-GitHubActions/2.0",
-              }
-
-              for attempt in range(
-                  1,
-                  TELEGRAM_RETRIES + 1
-              ):
-
-                  try:
-
-                      print(
-                          f"Telegram attempt "
-                          f"{attempt}/{TELEGRAM_RETRIES}..."
+              response = requests.get(
+                  url,
+                  timeout=REQUEST_TIMEOUT,
+                  headers={
+                      "User-Agent": (
+                          "Mozilla/5.0 "
+                          "EarnSmartIndiaBot/1.0"
                       )
-
-                      result = http_json(
-                          url,
-                          method="POST",
-                          data=data,
-                          headers=headers,
-                          timeout=TELEGRAM_TIMEOUT
-                      )
-
-                      print(
-                          "Telegram API response:"
-                      )
-
-                      print(
-                          json.dumps(
-                              result,
-                              ensure_ascii=False,
-                              indent=2
-                          )
-                      )
-
-                      if result.get("ok"):
-
-                          message = result.get(
-                              "result",
-                              {}
-                          )
-
-                          message_id = message.get(
-                              "message_id",
-                              "unknown"
-                          )
-
-                          print(
-                              "SUCCESS: Telegram message "
-                              f"published. Message ID: "
-                              f"{message_id}"
-                          )
-
-                          return True
-
-                      description = result.get(
-                          "description",
-                          "Unknown Telegram error"
-                      )
-
-                      raise RuntimeError(
-                          description
-                      )
-
-                  except Exception as exc:
-
-                      print(
-                          f"Telegram attempt "
-                          f"{attempt} failed: {exc}"
-                      )
-
-                      if attempt < TELEGRAM_RETRIES:
-
-                          time.sleep(
-                              attempt * 4
-                          )
-
-              return False
-
-
-          # ==========================================================
-          # TELEGRAM CONNECTION TEST
-          # ==========================================================
-
-          def test_bot():
-
-              url = (
-                  f"{TELEGRAM_API}/getMe"
+                  }
               )
-
-              try:
-
-                  result = http_json(
-                      url,
-                      timeout=30
-                  )
-
-                  if not result.get("ok"):
-
-                      raise RuntimeError(
-                          result.get(
-                              "description",
-                              "getMe failed"
-                          )
-                      )
-
-                  bot = result.get(
-                      "result",
-                      {}
-                  )
-
-                  username = bot.get(
-                      "username",
-                      "unknown"
-                  )
-
-                  print(
-                      f"Telegram bot verified: "
-                      f"@{username}"
-                  )
-
-                  return True
-
-              except Exception as exc:
-
-                  print(
-                      f"ERROR: Telegram bot "
-                      f"verification failed: {exc}"
-                  )
-
-                  return False
-
-
-          # ==========================================================
-          # MAIN
-          # ==========================================================
-
-          def main():
-
-              print()
-              print(
-                  "=================================================="
-              )
-              print(
-                  "EarnSmart India Daily Publisher"
-              )
-              print(
-                  "=================================================="
-              )
-
-              # ------------------------------------------------------
-              # Telegram bot verification
-              # ------------------------------------------------------
-
-              if not test_bot():
-
-                  print(
-                      "ERROR: Telegram bot token is invalid "
-                      "or Telegram API is unavailable."
-                  )
-
-                  sys.exit(1)
-
-              # ------------------------------------------------------
-              # Date / topic rotation
-              # ------------------------------------------------------
-
-              now = datetime.now(
-                  timezone.utc
-              )
-
-              day_of_year = (
-                  now.timetuple().tm_yday
-              )
-
-              topic_index = (
-                  day_of_year - 1
-              ) % len(TOPICS)
-
-              topic = TOPICS[
-                  topic_index
-              ]
-
-              print(
-                  f"UTC date: "
-                  f"{now.strftime('%Y-%m-%d')}"
-              )
-
-              print(
-                  f"Topic {topic_index + 1}/"
-                  f"{len(TOPICS)}:"
-              )
-
-              print(topic)
-
-              # ------------------------------------------------------
-              # Generate content
-              # ------------------------------------------------------
-
-              print()
-              print(
-                  "Generating daily post..."
-              )
-
-              generated = generate_post(
-                  topic
-              )
-
-              print(
-                  f"Generated characters: "
-                  f"{len(generated)}"
-              )
-
-              # ------------------------------------------------------
-              # Prepare Telegram message
-              # ------------------------------------------------------
-
-              message = prepare_telegram_text(
-                  generated
-              )
-
-              print(
-                  f"Telegram message characters: "
-                  f"{len(message)}"
-              )
-
-              # ------------------------------------------------------
-              # Publish
-              # ------------------------------------------------------
-
-              print()
-              print(
-                  f"Publishing to: "
-                  f"{TELEGRAM_CHAT}"
-              )
-
-              success = telegram_send_message(
-                  message
-              )
-
-              if not success:
-
-                  print()
-                  print(
-                      "=================================================="
-                  )
-                  print(
-                      "ERROR: Telegram publication failed."
-                  )
-                  print(
-                      "=================================================="
-                  )
-
-                  sys.exit(1)
-
-              print()
-              print(
-                  "=================================================="
-              )
-              print(
-                  "SUCCESS: Daily post published."
-              )
-              print(
-                  "=================================================="
-              )
-
-
-          if __name__ == "__main__":
-              main()
-
-          PY
-
-          # ==========================================================
-          # SYNTAX CHECK
-          # ==========================================================
-
-          echo ""
-          echo "Checking Python syntax..."
-
-          python -m py_compile \
-            /tmp/daily_post.py
-
-          echo "Python syntax: OK"
-
-          # ==========================================================
-          # EXECUTE
-          # ==========================================================
-
-          echo ""
-          echo "Running publisher..."
-
-          python /tmp/daily_post.py
-
-          echo ""
-          echo "Workflow completed successfully."
