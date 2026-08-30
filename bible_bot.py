@@ -4,29 +4,55 @@ import re
 import requests
 import sys
 import mimetypes
+import base64
 from datetime import datetime, timezone
-from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
+
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFont,
+    ImageEnhance,
+    ImageFilter
+)
 
 
-def _require_env(name):
-    v = os.environ.get(name)
-    if not v:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return v
+# =========================================================
+# ENVIRONMENT
+# =========================================================
+
+def require_env(name):
+    value = os.environ.get(name)
+
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {name}"
+        )
+
+    return value
 
 
-GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
-BOT_TOKEN = _require_env("TELEGRAM_BOT_TOKEN")
-CHANNEL_ID = _require_env("BIBLE_CHANNEL_ID")
+GEMINI_API_KEY = require_env("GEMINI_API_KEY")
+BOT_TOKEN = require_env("TELEGRAM_BOT_TOKEN")
+CHANNEL_ID = require_env("BIBLE_CHANNEL_ID")
+
 
 HISTORY_FILE = "posting_history.json"
 
-# Try the model from your previous error first,
-# then automatically try the newer model if necessary.
+
+# =========================================================
+# GEMINI TEXT MODELS
+# =========================================================
+
 GEMINI_MODELS = [
     "gemini-3.6-flash",
     "gemini-3.7-flash"
 ]
+
+
+# Image-generation model.
+# This is separate from the text model.
+IMAGE_MODEL = "gemini-3.1-flash-image"
 
 
 # =========================================================
@@ -34,12 +60,19 @@ GEMINI_MODELS = [
 # =========================================================
 
 def load_history():
+
     if not os.path.exists(HISTORY_FILE):
         return []
 
     try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+
+        with open(
+            HISTORY_FILE,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            data = json.load(file)
 
         if isinstance(data, list):
             return data
@@ -51,22 +84,29 @@ def load_history():
 
 
 def save_history(history):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+
+    with open(
+        HISTORY_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
         json.dump(
             history[-100:],
-            f,
+            file,
             ensure_ascii=False,
             indent=2
         )
 
 
 # =========================================================
-# GEMINI
+# GEMINI TEXT GENERATION
 # =========================================================
 
 def gemini(prompt):
 
     payload = {
+
         "contents": [
             {
                 "role": "user",
@@ -77,13 +117,16 @@ def gemini(prompt):
                 ]
             }
         ],
+
         "generationConfig": {
             "temperature": 0.8,
             "responseMimeType": "application/json"
         }
     }
 
+
     last_error = None
+
 
     for model in GEMINI_MODELS:
 
@@ -92,17 +135,23 @@ def gemini(prompt):
             f"v1beta/models/{model}:generateContent"
         )
 
+
         try:
 
             response = requests.post(
+
                 url,
+
                 headers={
                     "x-goog-api-key": GEMINI_API_KEY,
                     "Content-Type": "application/json"
                 },
+
                 json=payload,
-                timeout=60
+
+                timeout=90
             )
+
 
             if response.ok:
 
@@ -113,7 +162,9 @@ def gemini(prompt):
                     ["content"]["parts"][0]["text"]
                 )
 
+
                 text = text.strip()
+
 
                 text = re.sub(
                     r"^```json\s*",
@@ -122,6 +173,7 @@ def gemini(prompt):
                     flags=re.IGNORECASE
                 )
 
+
                 text = re.sub(
                     r"\s*```$",
                     "",
@@ -129,59 +181,258 @@ def gemini(prompt):
                     flags=re.IGNORECASE
                 )
 
+
                 return json.loads(text)
 
+
             last_error = (
-                f"{model}: HTTP {response.status_code} "
-                f"{response.text[:500]}"
+                f"{model}: HTTP "
+                f"{response.status_code}: "
+                f"{response.text[:800]}"
             )
 
-            # If model is not found, try next model.
+
             if response.status_code == 404:
                 continue
 
+
             break
 
-        except Exception as e:
-            last_error = str(e)
+
+        except Exception as error:
+
+            last_error = str(error)
+
 
     raise RuntimeError(
-        f"Gemini API failed: {last_error}"
+        f"Gemini text API failed: {last_error}"
     )
 
 
 # =========================================================
-# TELEGRAM
+# GEMINI AI IMAGE GENERATION
 # =========================================================
 
-def telegram(method, data):
+def generate_ai_background(
+    quote_text,
+    reference,
+    reflection
+):
+
+    print("Generating AI Bible background...")
+
+
+    prompt = f"""
+Create a beautiful cinematic Christian Bible quote
+background image.
+
+Bible verse:
+{quote_text}
+
+Bible reference:
+{reference}
+
+Meaning/reflection:
+{reflection}
+
+IMPORTANT VISUAL REQUIREMENTS:
+
+- Create a realistic, respectful Christian biblical scene.
+- The visual must match the meaning of the Bible verse.
+- Jesus may appear when appropriate to the meaning.
+- If the verse is about protection, show Jesus protecting
+  or comforting a person.
+- If the verse is about fear, show Jesus bringing peace
+  during a storm or difficult situation.
+- If the verse is about strength, show Jesus beside a
+  person who is struggling.
+- If the verse is about hope, show Jesus with warm light,
+  sunrise or a peaceful hopeful atmosphere.
+- If the verse is about prayer, show a person praying
+  with a peaceful Christian atmosphere.
+- If the verse is about guidance, show Jesus walking with
+  or guiding a person.
+- If the verse is about forgiveness, show a compassionate
+  and peaceful Christian scene.
+- Use historically inspired biblical clothing and scenery.
+- Jesus should look dignified, compassionate and natural.
+- Use cinematic lighting.
+- Use realistic high-quality Christian artwork.
+- Create strong visual depth.
+- Keep the central/upper-middle area relatively dark or
+  visually simple because Telugu text will be placed there.
+- Do NOT generate any text.
+- Do NOT generate Bible verses.
+- Do NOT generate letters.
+- Do NOT generate logos.
+- Do NOT generate watermarks.
+- Do NOT generate modern advertisements.
+- Do NOT put words inside the image.
+- Square 1:1 composition.
+- Suitable for a Telegram Bible quote card.
+"""
+
+
+    payload = {
+
+        "model": IMAGE_MODEL,
+
+        "input": prompt,
+
+        "response_format": {
+            "type": "image",
+            "aspect_ratio": "1:1",
+            "image_size": "1K"
+        }
+    }
+
 
     url = (
-        f"https://api.telegram.org/"
-        f"bot{BOT_TOKEN}/{method}"
+        "https://generativelanguage.googleapis.com/"
+        "v1beta/interactions"
     )
+
 
     response = requests.post(
+
         url,
-        data=data,
-        timeout=60
+
+        headers={
+            "x-goog-api-key": GEMINI_API_KEY,
+            "Content-Type": "application/json"
+        },
+
+        json=payload,
+
+        timeout=180
     )
 
-    try:
-        body = response.json()
-    except Exception:
-        body = {
-            "ok": False,
-            "description": response.text
-        }
 
-    if not body.get("ok"):
+    if not response.ok:
 
         raise RuntimeError(
-            f"Telegram API error: {body}"
+            "Gemini image generation failed: "
+            f"HTTP {response.status_code}: "
+            f"{response.text[:1000]}"
         )
 
-    return body["result"]
+
+    body = response.json()
+
+
+    # Current API provides output_image.
+    output_image = body.get("output_image")
+
+
+    if output_image:
+
+        data = output_image.get("data")
+
+        if data:
+
+            return Image.open(
+                BytesIO(
+                    base64.b64decode(data)
+                )
+            ).convert("RGB")
+
+
+    # Fallback: inspect interaction steps.
+    steps = body.get("steps", [])
+
+
+    for step in steps:
+
+        if step.get("type") != "model_output":
+            continue
+
+
+        content = step.get("content", [])
+
+
+        for block in content:
+
+            if block.get("type") == "image":
+
+                data = block.get("data")
+
+
+                if data:
+
+                    return Image.open(
+                        BytesIO(
+                            base64.b64decode(data)
+                        )
+                    ).convert("RGB")
+
+
+    raise RuntimeError(
+        "Gemini returned no image data."
+    )
+
+
+# =========================================================
+# FALLBACK BACKGROUND
+# =========================================================
+
+def create_fallback_background():
+
+    width = 1080
+    height = 1080
+
+
+    image = Image.new(
+        "RGB",
+        (width, height)
+    )
+
+
+    draw = ImageDraw.Draw(image)
+
+
+    for y in range(height):
+
+        t = y / height
+
+        r = int(15 + 55 * t)
+        g = int(25 + 45 * t)
+        b = int(45 + 35 * t)
+
+
+        draw.line(
+            (0, y, width, y),
+            fill=(r, g, b)
+        )
+
+
+    # Simple mountains
+    mountain1 = [
+        (0, 800),
+        (180, 700),
+        (330, 780),
+        (520, 620),
+        (700, 760),
+        (880, 650),
+        (1080, 780),
+        (1080, 1080),
+        (0, 1080)
+    ]
+
+
+    draw.polygon(
+        mountain1,
+        fill=(18, 22, 28)
+    )
+
+
+    # Moon/light
+    draw.ellipse(
+        (760, 100, 900, 240),
+        fill=(235, 220, 170)
+    )
+
+
+    return image
 
 
 # =========================================================
@@ -191,6 +442,7 @@ def telegram(method, data):
 def find_telugu_font():
 
     fonts = [
+
         "/usr/share/fonts/truetype/noto/"
         "NotoSansTelugu-Regular.ttf",
 
@@ -199,145 +451,81 @@ def find_telugu_font():
 
         "/usr/share/fonts/opentype/noto/"
         "NotoSansTelugu-Regular.ttf"
+
     ]
+
 
     for font in fonts:
 
         if os.path.exists(font):
             return font
 
-    # As a last resort, try to find any .ttf on system that contains 'Telugu' in name
+
     try:
-        for root, dirs, files in os.walk('/usr/share/fonts'):
-            for f in files:
-                if 'Telugu' in f or 'telugu' in f:
-                    candidate = os.path.join(root, f)
-                    return candidate
+
+        for root, dirs, files in os.walk(
+            "/usr/share/fonts"
+        ):
+
+            for filename in files:
+
+                if (
+                    "Telugu" in filename
+                    or
+                    "telugu" in filename
+                ):
+
+                    return os.path.join(
+                        root,
+                        filename
+                    )
+
     except Exception:
         pass
 
+
     raise FileNotFoundError(
-        "Telugu font not found. Please install Noto Sans Telugu or set an appropriate font path."
+        "Telugu font not found."
     )
 
 
 # =========================================================
-# CREATE BIBLE QUOTE IMAGE
+# TEXT WRAPPING
 # =========================================================
 
-def make_quote_image(
+def wrap_text(
+    draw,
     text,
-    reference,
-    output="quote_card.png"
+    font,
+    max_width
 ):
 
-    width = 1080
-    height = 1080
+    words = text.split()
 
-    image = Image.new(
-        "RGB",
-        (width, height),
-        (18, 28, 38)
-    )
-
-    draw = ImageDraw.Draw(image)
-
-    # Background gradient
-    for y in range(height):
-
-        if y < 760:
-
-            t = y / 760
-
-            r = int(18 + 42 * t)
-            g = int(28 + 55 * t)
-            b = int(38 + 60 * t)
-
-        else:
-
-            t = (y - 760) / 320
-
-            r = int(60 - 30 * t)
-            g = int(45 - 20 * t)
-            b = int(35 - 10 * t)
-
-        draw.line(
-            (0, y, width, y),
-            fill=(r, g, b)
-        )
-
-    # Mountain
-    mountain = [
-        (0, 850),
-        (180, 790),
-        (330, 820),
-        (520, 690),
-        (690, 790),
-        (850, 735),
-        (1080, 820),
-        (1080, 1080),
-        (0, 1080)
-    ]
-
-    draw.polygon(
-        mountain,
-        fill=(20, 25, 29)
-    )
-
-    font_path = find_telugu_font()
-
-    title_font = ImageFont.truetype(
-        font_path,
-        34
-    )
-
-    verse_font = ImageFont.truetype(
-        font_path,
-        52
-    )
-
-    reference_font = ImageFont.truetype(
-        font_path,
-        38
-    )
-
-    # Main card
-    draw.rounded_rectangle(
-        (65, 85, 1015, 720),
-        radius=35,
-        fill=(0, 0, 0),
-        outline=(230, 190, 80),
-        width=3
-    )
-
-    draw.text(
-        (540, 145),
-        "నేటి బైబిల్ వాక్యం",
-        font=title_font,
-        fill=(245, 190, 75),
-        anchor="mm"
-    )
-
-    # Wrap Telugu text
     lines = []
+
     current = ""
 
-    for word in text.split():
+
+    for word in words:
 
         test = (
             f"{current} {word}"
         ).strip()
 
+
         box = draw.textbbox(
             (0, 0),
             test,
-            font=verse_font
+            font=font
         )
 
-        # box is (left, top, right, bottom) - compute width
-        w = box[2] - box[0]
 
-        if w <= 850:
+        width = box[2] - box[0]
+
+
+        if width <= max_width:
+
             current = test
 
         else:
@@ -347,45 +535,415 @@ def make_quote_image(
 
             current = word
 
+
     if current:
         lines.append(current)
 
+
+    return lines
+
+
+# =========================================================
+# CREATE QUOTE IMAGE
+# =========================================================
+
+def make_quote_image(
+    text,
+    reference,
+    reflection,
+    output="quote_card.png"
+):
+
+    width = 1080
+    height = 1080
+
+
+    # -----------------------------------------------------
+    # FIRST TRY AI-GENERATED BACKGROUND
+    # -----------------------------------------------------
+
+    try:
+
+        background = generate_ai_background(
+            text,
+            reference,
+            reflection
+        )
+
+        print(
+            "SUCCESS: AI Bible background generated."
+        )
+
+    except Exception as error:
+
+        print(
+            "WARNING: AI image generation failed."
+        )
+
+        print(
+            "Reason:",
+            str(error)
+        )
+
+        print(
+            "Using fallback background so post "
+            "will not fail."
+        )
+
+        background = create_fallback_background()
+
+
+    # -----------------------------------------------------
+    # RESIZE / CROP
+    # -----------------------------------------------------
+
+    background = background.convert("RGB")
+
+
+    bg_ratio = (
+        background.width /
+        background.height
+    )
+
+
+    target_ratio = 1.0
+
+
+    if bg_ratio > target_ratio:
+
+        new_height = background.height
+
+        new_width = int(
+            new_height * target_ratio
+        )
+
+    else:
+
+        new_width = background.width
+
+        new_height = int(
+            new_width / target_ratio
+        )
+
+
+    left = (
+        background.width -
+        new_width
+    ) // 2
+
+
+    top = (
+        background.height -
+        new_height
+    ) // 2
+
+
+    background = background.crop(
+        (
+            left,
+            top,
+            left + new_width,
+            top + new_height
+        )
+    )
+
+
+    background = background.resize(
+        (width, height),
+        Image.Resampling.LANCZOS
+    )
+
+
+    # -----------------------------------------------------
+    # DARKEN BACKGROUND
+    # -----------------------------------------------------
+
+    background = ImageEnhance.Brightness(
+        background
+    ).enhance(0.62)
+
+
+    # Slight blur makes text cleaner.
+    background = background.filter(
+        ImageFilter.GaussianBlur(1.2)
+    )
+
+
+    image = background.convert("RGBA")
+
+
+    # -----------------------------------------------------
+    # DARK OVERLAY
+    # -----------------------------------------------------
+
+    overlay = Image.new(
+        "RGBA",
+        (width, height),
+        (0, 0, 0, 0)
+    )
+
+
+    overlay_draw = ImageDraw.Draw(
+        overlay
+    )
+
+
+    # Main readable area
+    overlay_draw.rounded_rectangle(
+
+        (45, 65, 1035, 765),
+
+        radius=40,
+
+        fill=(
+            0,
+            0,
+            0,
+            155
+        ),
+
+        outline=(
+            235,
+            190,
+            80,
+            230
+        ),
+
+        width=3
+    )
+
+
+    image = Image.alpha_composite(
+        image,
+        overlay
+    )
+
+
+    draw = ImageDraw.Draw(image)
+
+
+    font_path = find_telugu_font()
+
+
+    title_font = ImageFont.truetype(
+        font_path,
+        34
+    )
+
+
+    verse_font = ImageFont.truetype(
+        font_path,
+        48
+    )
+
+
+    reference_font = ImageFont.truetype(
+        font_path,
+        36
+    )
+
+
+    footer_font = ImageFont.truetype(
+        font_path,
+        30
+    )
+
+
+    # -----------------------------------------------------
+    # TITLE
+    # -----------------------------------------------------
+
+    draw.text(
+
+        (540, 125),
+
+        "నేటి బైబిల్ వాక్యం",
+
+        font=title_font,
+
+        fill=(
+            245,
+            195,
+            75
+        ),
+
+        anchor="mm"
+    )
+
+
+    # -----------------------------------------------------
+    # QUOTE
+    # -----------------------------------------------------
+
+    lines = wrap_text(
+
+        draw,
+
+        text,
+
+        verse_font,
+
+        850
+    )
+
+
+    # Maximum readable lines
     lines = lines[:7]
 
-    y = 245
 
-    for line in lines:
+    line_height = 72
 
+
+    total_height = (
+        len(lines) *
+        line_height
+    )
+
+
+    start_y = (
+        380 -
+        total_height / 2
+    )
+
+
+    for index, line in enumerate(lines):
+
+        y = (
+            start_y +
+            index * line_height
+        )
+
+
+        # Shadow
         draw.text(
-            (540, y),
+
+            (540 + 2, y + 2),
+
             line,
+
             font=verse_font,
-            fill=(250, 250, 250),
+
+            fill=(
+                0,
+                0,
+                0
+            ),
+
             anchor="mm"
         )
 
-        y += 70
+
+        draw.text(
+
+            (540, y),
+
+            line,
+
+            font=verse_font,
+
+            fill=(
+                255,
+                255,
+                255
+            ),
+
+            anchor="mm"
+        )
+
+
+    # -----------------------------------------------------
+    # REFERENCE
+    # -----------------------------------------------------
 
     draw.text(
-        (540, 650),
+
+        (540, 670),
+
         reference,
+
         font=reference_font,
-        fill=(245, 190, 75),
+
+        fill=(
+            245,
+            195,
+            75
+        ),
+
         anchor="mm"
     )
 
+
+    # -----------------------------------------------------
+    # BOTTOM BRANDING
+    # -----------------------------------------------------
+
+    # Add a subtle dark bottom gradient.
+    bottom_overlay = Image.new(
+        "RGBA",
+        (width, height),
+        (0, 0, 0, 0)
+    )
+
+
+    bottom_draw = ImageDraw.Draw(
+        bottom_overlay
+    )
+
+
+    bottom_draw.rectangle(
+
+        (0, 900, width, height),
+
+        fill=(
+            0,
+            0,
+            0,
+            120
+        )
+    )
+
+
+    image = Image.alpha_composite(
+        image,
+        bottom_overlay
+    )
+
+
+    draw = ImageDraw.Draw(image)
+
+
     draw.text(
-        (540, 1010),
+
+        (540, 990),
+
         "Telugu Christians world",
-        font=title_font,
-        fill=(245, 245, 245),
+
+        font=footer_font,
+
+        fill=(
+            255,
+            255,
+            255
+        ),
+
         anchor="mm"
     )
+
+
+    image = image.convert("RGB")
+
 
     image.save(
         output,
-        "PNG"
+        "PNG",
+        optimize=True
     )
+
+
+    print(
+        f"Quote image saved: {output}"
+    )
+
 
     return output
 
@@ -397,38 +955,58 @@ def make_quote_image(
 def generate_quote(history):
 
     previous = [
-        item.get("text", "")
+
+        item.get(
+            "text",
+            ""
+        )
+
         for item in history
-        if item.get("type") == "quote"
-    ][-20:]
+
+        if item.get("type") in (
+            "quote",
+            "verse"
+        )
+
+    ][-30:]
+
 
     prompt = f"""
-మీరు Telugu Christians world అనే తెలుగు క్రైస్తవ టెలిగ్రామ్
-ఛానల్ కోసం నాణ్యమైన రోజువారీ బైబిల్ కంటెంట్ తయారు చేస్తున్నారు.
+
+మీరు "Telugu Christians world"
+అనే తెలుగు క్రైస్తవ టెలిగ్రామ్ ఛానల్ కోసం
+నాణ్యమైన రోజువారీ బైబిల్ కంటెంట్ తయారు చేస్తున్నారు.
 
 ఒక నిజమైన బైబిల్ వాక్యాన్ని ఎంచుకోండి.
 
-ముందు ఉపయోగించిన వాక్యాలు:
-{json.dumps(previous, ensure_ascii=False)}
+ఇప్పటికే ఉపయోగించిన వాక్యాలు:
 
-వాక్యం పునరావృతం కాకూడదు.
+{json.dumps(
+    previous,
+    ensure_ascii=False
+)}
+
+పాత వాక్యాన్ని పునరావృతం చేయకండి.
 
 JSON మాత్రమే ఇవ్వండి:
 
-{ {
-  "text": "తెలుగులో చిన్నదైన, అర్థవంతమైన బైబిల్ వాక్యం",
+{{
+  "text": "తెలుగులో సహజమైన మరియు అర్థవంతమైన బైబిల్ వాక్యం",
   "reference": "గ్రంథం అధ్యాయం:వచనం",
-  "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే చిన్న ఆలోచన"
+  "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే ఉపయోగకరమైన ఆలోచన"
 }}
 
 నిబంధనలు:
 
-1. వాక్యం కల్పితం కాకూడదు.
-2. గ్రంథ సూచన వాక్యానికి సరిపోవాలి.
+1. నిజమైన బైబిల్ వాక్యం మాత్రమే.
+2. reference వాక్యానికి తప్పనిసరిగా సరిపోవాలి.
 3. సహజమైన తెలుగు ఉపయోగించండి.
-4. reflection ఉపయోగకరంగా ఉండాలి.
-5. చాలా చిన్న సమాచారం ఇవ్వకండి.
+4. వాక్యం చాలా పొడవుగా ఉండకూడదు.
+5. reflection ఉపయోగకరంగా ఉండాలి.
+6. అదే వాక్యాన్ని మళ్లీ ఉపయోగించకండి.
+7. కల్పిత Bible reference ఇవ్వకండి.
 """
+
 
     return gemini(prompt)
 
@@ -440,17 +1018,30 @@ JSON మాత్రమే ఇవ్వండి:
 def generate_quiz(history):
 
     previous = [
-        item.get("question", "")
+
+        item.get(
+            "question",
+            ""
+        )
+
         for item in history
+
         if item.get("type") == "quiz"
+
     ][-30:]
 
+
     prompt = f"""
-Telugu Christians world కోసం ఒక మంచి తెలుగు Bible quiz తయారు చేయండి.
+
+Telugu Christians world కోసం
+ఒక మంచి తెలుగు Bible quiz తయారు చేయండి.
 
 ఇప్పటికే ఉపయోగించిన ప్రశ్నలు:
 
-{json.dumps(previous, ensure_ascii=False)}
+{json.dumps(
+    previous,
+    ensure_ascii=False
+)}
 
 పాత ప్రశ్నలను పునరావృతం చేయకండి.
 
@@ -461,13 +1052,13 @@ Telugu Christians world కోసం ఒక మంచి తెలుగు Bibl
 3. ఒక్కటే సరైన సమాధానం ఉండాలి.
 4. నిజమైన బైబిల్ సమాచారంపై ఆధారపడాలి.
 5. options చిన్నగా ఉండాలి.
-6. సరైన answer_index 0,1,2,3 లో ఒకటి కావాలి.
+6. answer_index 0,1,2,3 లో ఒకటి కావాలి.
 7. explanation ఉపయోగకరంగా ఉండాలి.
 8. reference తప్పనిసరిగా ఇవ్వాలి.
 
 JSON మాత్రమే:
 
-{ {
+{{
   "question": "తెలుగులో ప్రశ్న",
   "options": [
     "ఎంపిక 1",
@@ -481,6 +1072,64 @@ JSON మాత్రమే:
 }}
 """
 
+
+    return gemini(prompt)
+
+
+# =========================================================
+# GENERATE KNOWLEDGE
+# =========================================================
+
+def generate_knowledge(history):
+
+    previous = [
+
+        item.get(
+            "title",
+            ""
+        )
+
+        for item in history
+
+        if item.get("type") == "knowledge"
+
+    ][-20:]
+
+
+    prompt = f"""
+
+"Telugu Christians world"
+కోసం ఒక ఉపయోగకరమైన తెలుగు Bible knowledge post
+తయారు చేయండి.
+
+ఇప్పటికే ఉపయోగించిన topics:
+
+{json.dumps(
+    previous,
+    ensure_ascii=False
+)}
+
+పాత topic పునరావృతం చేయకండి.
+
+JSON మాత్రమే:
+
+{{
+  "title": "ఆకర్షణీయమైన తెలుగు శీర్షిక",
+  "content": "వివరమైన కానీ సులభంగా అర్థమయ్యే తెలుగు Bible సమాచారం",
+  "reference": "సంబంధిత Bible reference"
+}}
+
+నిబంధనలు:
+
+1. నిజమైన Bible information మాత్రమే.
+2. తప్పు Bible facts ఇవ్వకండి.
+3. కనీసం 3 ముఖ్యమైన points ఉండాలి.
+4. తెలుగు సహజంగా ఉండాలి.
+5. content ఉపయోగకరంగా ఉండాలి.
+6. reference ఇవ్వాలి.
+"""
+
+
     return gemini(prompt)
 
 
@@ -491,200 +1140,21 @@ JSON మాత్రమే:
 def post_quote(data):
 
     image_path = make_quote_image(
+
         data["text"],
-        data["reference"]
+
+        data["reference"],
+
+        data["reflection"]
     )
+
 
     caption = (
+
         "<b>📖 నేటి బైబిల్ వాక్యం</b>\n\n"
+
         f"“{data['text']}”\n\n"
+
         f"📍 <b>{data['reference']}</b>\n\n"
-        f"💭 {data['reflection']}\n\n"
-        "🙏 ఈ వాక్యాన్ని ఈరోజు గుర్తుంచుకోండి.\n\n"
-        "🔔 @Christians_world"
-    )
 
-    with open(
-        image_path,
-        "rb"
-    ) as photo:
-
-        url = (
-            f"https://api.telegram.org/"
-            f"bot{BOT_TOKEN}/sendPhoto"
-        )
-
-        mime = mimetypes.guess_type(image_path)[0] or "image/png"
-        filename = os.path.basename(image_path)
-
-        response = requests.post(
-            url,
-            data={
-                "chat_id": CHANNEL_ID,
-                "caption": caption,
-                "parse_mode": "HTML"
-            },
-            files={
-                "photo": (filename, photo, mime)
-            },
-            timeout=60
-        )
-
-    try:
-        body = response.json()
-    except Exception:
-        body = {"ok": False, "description": response.text}
-
-    if not body.get("ok"):
-
-        raise RuntimeError(
-            f"Telegram sendPhoto failed: {body}"
-        )
-
-
-# =========================================================
-# POST QUIZ
-# =========================================================
-
-def post_quiz(data):
-
-    options = [
-        str(option).strip()
-        for option in data["options"]
-    ]
-
-    if len(options) != 4:
-        raise ValueError(
-            "Quiz must contain exactly 4 options."
-        )
-
-    answer_index = int(
-        data["answer_index"]
-    )
-
-    if answer_index not in range(4):
-
-        raise ValueError(
-            "answer_index must be 0, 1, 2 or 3."
-        )
-
-    question = str(
-        data["question"]
-    ).strip()
-
-    explanation = (
-        f"{data['explanation']} "
-        f"📖 {data['reference']}"
-    )
-
-    explanation = explanation[:200]
-
-    # Telegram expects the single integer field correct_option_id for quiz polls
-    telegram(
-        "sendPoll",
-        {
-            "chat_id": CHANNEL_ID,
-            "question": question,
-            "options": json.dumps(
-                options,
-                ensure_ascii=False
-            ),
-            "type": "quiz",
-            "is_anonymous": "true",
-            "correct_option_id": str(answer_index),
-            "explanation": explanation,
-            "allows_multiple_answers": "false",
-            "shuffle_options": "true"
-        }
-    )
-
-
-# =========================================================
-# MAIN
-# =========================================================
-
-def main():
-
-    try:
-        history = load_history()
-
-        today = datetime.now(
-            timezone.utc
-        ).strftime("%Y-%m-%d")
-
-        post_type = os.environ.get(
-            "POST_TYPE",
-            "quiz"
-        ).lower()
-
-        print("===================================")
-        print("TELUGU BIBLE TELEGRAM BOT")
-        print("===================================")
-        print(f"Post type: {post_type}")
-
-        if post_type == "quote":
-
-            data = generate_quote(
-                history
-            )
-
-            post_quote(
-                data
-            )
-
-            history.append(
-                {
-                    "date": today,
-                    "type": "quote",
-                    "text": data["text"],
-                    "reference": data["reference"]
-                }
-            )
-
-            print(
-                "SUCCESS: Bible quote posted."
-            )
-
-        elif post_type == "quiz":
-
-            data = generate_quiz(
-                history
-            )
-
-            post_quiz(
-                data
-            )
-
-            history.append(
-                {
-                    "date": today,
-                    "type": "quiz",
-                    "question": data["question"]
-                }
-            )
-
-            print(
-                "SUCCESS: Bible quiz posted."
-            )
-
-        else:
-
-            raise ValueError(
-                "POST_TYPE must be quote or quiz."
-            )
-
-        save_history(
-            history
-        )
-
-        print(
-            "Posting history saved."
-        )
-
-    except Exception as e:
-        print("ERROR:", str(e))
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+        f"💭 {data['r
