@@ -76,7 +76,6 @@ jobs:
           date_str = today.strftime("%d %B %Y")
 
           # Determine post slot
-          slot = None
           if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
               hour = today.hour
               if hour == 9:
@@ -85,120 +84,92 @@ jobs:
                   slot = 1
               elif hour == 20:
                   slot = 2
+              else:
+                  slot = 0
           else:
               slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
 
-          # Example topic database (abbreviated — expand to 36 topics)
+          # Example topic database (expand to 36 topics)
           topics = [
               {
                   "title": "Freelancing for Beginners",
                   "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
-                  "content": f"""📅 {date_str}
-
-🎯 <b>Freelancing for Beginners</b>
-
-📌 <b>What is this work?</b>
-Offer one skill as a service online.
-
-🛠️ <b>Skills required</b>
-• Communication
-• Time management
-• Proposal writing
-
-🚀 <b>How to start</b>
-1. Pick one skill
-2. Practise daily
-3. Build 3 sample projects
-4. Create a portfolio
-5. Apply only for relevant jobs
-
-💼 <b>Where to find legitimate work</b>
-• <a href="https://www.upwork.com">Upwork</a>
-• <a href="https://www.fiverr.com">Fiverr</a>
-• <a href="https://www.freelancer.com">Freelancer</a>
-• <a href="https://www.naukri.com/freelance-jobs">Naukri India</a>
-
-💰 <b>Earning reality</b>
-Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.
-
-⚠️ <b>Scam warning</b>
-Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.
-
-📅 <b>7-day action plan</b>
-Day 1: Practise
-Day 2: Build sample
-Day 3: Portfolio
-Day 4: Apply
-Day 5: Improve
-Day 6: Network
-Day 7: Review progress
-
-🔗 <b>Useful resources</b>
-• <a href="https://www.freelancer.com">Freelancer</a>
-• <a href="https://www.upwork.com/resources">Upwork Resources</a>
-
-🎯 <b>Today's action</b>
-Create your first sample project.
-
-────────────────
-<b>EarnSmart India</b>
-Learn • Work • Earn Safely
-────────────────"""
+                  "content": (
+                      f"📅 {date_str}\n\n"
+                      "🎯 <b>Freelancing for Beginners</b>\n\n"
+                      "📌 <b>What is this work?</b>\n"
+                      "Offer one skill as a service online.\n\n"
+                      "🛠️ <b>Skills required</b>\n"
+                      "• Communication\n"
+                      "• Time management\n"
+                      "• Proposal writing\n\n"
+                      "🚀 <b>How to start</b>\n"
+                      "1. Pick one skill\n"
+                      "2. Practise daily\n"
+                      "3. Build 3 sample projects\n"
+                      "4. Create a portfolio\n"
+                      "5. Apply only for relevant jobs\n\n"
+                      "💼 <b>Where to find legitimate work</b>\n"
+                      "<a href=\"https://www.upwork.com\">Upwork</a>\n"
+                      "<a href=\"https://www.fiverr.com\">Fiverr</a>\n"
+                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
+                      "<a href=\"https://www.naukri.com/freelance-jobs\">Naukri India</a>\n\n"
+                      "💰 <b>Earning reality</b>\n"
+                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
+                      "⚠️ <b>Scam warning</b>\n"
+                      "Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.\n\n"
+                      "📅 <b>7-day action plan</b>\n"
+                      "Day 1: Practise\nDay 2: Build sample\nDay 3: Portfolio\nDay 4: Apply\nDay 5: Improve\nDay 6: Network\nDay 7: Review progress\n\n"
+                      "🔗 <b>Useful resources</b>\n"
+                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
+                      "<a href=\"https://www.upwork.com/resources\">Upwork Resources</a>\n\n"
+                      "🎯 <b>Today's action</b>\n"
+                      "Create your first sample project.\n\n"
+                      "────────────────\n"
+                      "<b>EarnSmart India</b>\n"
+                      "Learn • Work • Earn Safely\n"
+                      "────────────────"
+                  )
               },
               {
                   "title": "Learn Video Editing",
                   "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
-                  "content": f"""📅 {date_str}
-
-🎯 <b>Learn Video Editing</b>
-
-📌 <b>What is this work?</b>
-Video editors turn raw footage into finished videos.
-
-🛠️ <b>Skills required</b>
-• Video editing software
-• Storytelling
-• Audio editing
-• Captions
-
-🚀 <b>How to start</b>
-1. Install CapCut or DaVinci Resolve
-2. Practise with free footage
-3. Create 5 sample videos
-4. Build a showreel
-5. Offer services to creators
-
-💼 <b>Where to find legitimate work</b>
-• <a href="https://www.fiverr.com/categories/video-animation/video-editing">Fiverr</a>
-• <a href="https://www.upwork.com/freelance-jobs/video-editing/">Upwork</a>
-• <a href="https://www.linkedin.com/jobs/">LinkedIn Jobs</a>
-
-💰 <b>Earning reality</b>
-Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.
-
-⚠️ <b>Scam warning</b>
-Avoid fake “YouTube monetization” schemes.
-
-📅 <b>7-day action plan</b>
-Day 1: Learn basics
-Day 2: Practise
-Day 3: Create samples
-Day 4: Build showreel
-Day 5: Apply
-Day 6: Network
-Day 7: Review progress
-
-🔗 <b>Useful resources</b>
-• <a href="https://www.blackmagicdesign.com/products/davinciresolve">DaVinci Resolve Official</a>
-• <a href="https://creatoracademy.youtube.com">YouTube Creator Academy</a>
-
-🎯 <b>Today's action</b>
-Edit a 30‑second reel.
-
-────────────────
-<b>EarnSmart India</b>
-Learn • Work • Earn Safely
-────────────────"""
+                  "content": (
+                      f"📅 {date_str}\n\n"
+                      "🎯 <b>Learn Video Editing</b>\n\n"
+                      "📌 <b>What is this work?</b>\n"
+                      "Video editors turn raw footage into finished videos.\n\n"
+                      "🛠️ <b>Skills required</b>\n"
+                      "• Video editing software\n"
+                      "• Storytelling\n"
+                      "• Audio editing\n"
+                      "• Captions\n\n"
+                      "🚀 <b>How to start</b>\n"
+                      "1. Install CapCut or DaVinci Resolve\n"
+                      "2. Practise with free footage\n"
+                      "3. Create 5 sample videos\n"
+                      "4. Build a showreel\n"
+                      "5. Offer services to creators\n\n"
+                      "💼 <b>Where to find legitimate work</b>\n"
+                      "<a href=\"https://www.fiverr.com/categories/video-animation/video-editing\">Fiverr</a>\n"
+                      "<a href=\"https://www.upwork.com/freelance-jobs/video-editing/\">Upwork</a>\n"
+                      "<a href=\"https://www.linkedin.com/jobs/\">LinkedIn Jobs</a>\n\n"
+                      "💰 <b>Earning reality</b>\n"
+                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
+                      "⚠️ <b>Scam warning</b>\n"
+                      "Avoid fake “YouTube monetization” schemes.\n\n"
+                      "📅 <b>7-day action plan</b>\n"
+                      "Day 1: Learn basics\nDay 2: Practise\nDay 3: Create samples\nDay 4: Build showreel\nDay 5: Apply\nDay 6: Network\nDay 7: Review progress\n\n"
+                      "🔗 <b>Useful resources</b>\n"
+                      "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
+                      "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
+                      "🎯 <b>Today's action</b>\n"
+                      "Edit a 30‑second reel.\n\n"
+                      "────────────────\n"
+                      "<b>EarnSmart India</b>\n"
+                      "Learn • Work • Earn Safely\n"
+                      "────────────────"
+                  )
               }
               # Expand to 36 topics in same format
           ]
@@ -209,28 +180,4 @@ Learn • Work • Earn Safely
           selected_topic = topics[(start_index + slot) % len(topics)]
 
           print(f"India date: {date_str}")
-          print(f"Post slot: {slot+1}")
-          print(f"Selected topic: {selected_topic['title']}")
-          print(f"Image URL: {selected_topic['image']}")
-          print("Preparing post...")
-
-          # Send image with short caption
-          print("Sending image with short caption...")
-          telegram_request("sendPhoto", {
-              "chat_id": CHAT_ID,
-              "photo": selected_topic["image"],
-              "caption": f"📅 {date_str}\n🎯 {selected_topic['title']}",
-              "parse_mode": "HTML"
-          })
-
-          # Send detailed message separately
-          print("Sending detailed message...")
-          telegram_request("sendMessage", {
-              "chat_id": CHAT_ID,
-              "text": selected_topic["content"],
-              "parse_mode": "HTML",
-              "disable_web_page_preview": True
-          })
-
-          print("Telegram post published successfully")
-          PY
+          print(f"Post slot: {slot+
