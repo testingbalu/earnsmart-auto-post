@@ -4,32 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       post_slot:
-        description: "Choose post slot for manual testing (1=Morning, 2=Afternoon, 3=Evening)"
+        description: "Choose post slot (1=Morning, 2=Afternoon, 3=Evening)"
         required: true
         default: "1"
         type: choice
-        options:
-          - "1"
-          - "2"
-          - "3"
+        options: ["1","2","3"]
   schedule:
-    - cron: "30 3 * * *"   # 9:00 AM IST
-    - cron: "30 8 * * *"   # 2:00 PM IST
-    - cron: "30 14 * * *"  # 8:00 PM IST
+    - cron: "30 3 * * *"
+    - cron: "30 8 * * *"
+    - cron: "30 14 * * *"
 
 jobs:
   post-to-telegram:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-
       - name: Generate and publish selected post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -42,10 +36,6 @@ jobs:
           CHAT_ID = "@LegitEarnIndia"
           API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-          if not BOT_TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN secret is missing.")
-              sys.exit(1)
-
           def telegram_request(method, params, retries=3, delay=5):
               data = urllib.parse.urlencode(params).encode()
               url = API_URL + "/" + method
@@ -53,84 +43,32 @@ jobs:
                   try:
                       req = urllib.request.Request(url, data=data)
                       with urllib.request.urlopen(req) as resp:
-                          body = resp.read().decode()
-                          result = json.loads(body)
+                          result = json.loads(resp.read().decode())
                           if not result.get("ok"):
-                              print(f"Telegram API error (attempt {attempt}): {result}")
+                              print(f"Telegram API error: {result}")
                               if attempt < retries:
                                   time.sleep(delay)
                                   continue
                               sys.exit(1)
-                          print(f"Telegram API success: message_id={result['result']['message_id']}")
                           return result
                   except Exception as e:
-                      print(f"HTTP error (attempt {attempt}): {e}")
+                      print(f"HTTP error: {e}")
                       if attempt < retries:
                           time.sleep(delay)
                           continue
                       sys.exit(1)
 
-          # Asia/Kolkata date
           ist = timezone(timedelta(hours=5, minutes=30))
           today = datetime.now(ist)
           date_str = today.strftime("%d %B %Y")
 
-          # Determine post slot
           if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
               hour = today.hour
-              if hour == 9:
-                  slot = 0
-              elif hour == 14:
-                  slot = 1
-              elif hour == 20:
-                  slot = 2
-              else:
-                  slot = 0
+              slot = 0 if hour==9 else 1 if hour==14 else 2
           else:
-              slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
+              slot = int(os.environ.get("INPUT_POST_SLOT","1"))-1
 
-          # Example topic database (expand to 36 topics)
           topics = [
-              {
-                  "title": "Freelancing for Beginners",
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
-                  "content": (
-                      f"📅 {date_str}\n\n"
-                      "🎯 <b>Freelancing for Beginners</b>\n\n"
-                      "📌 <b>What is this work?</b>\n"
-                      "Offer one skill as a service online.\n\n"
-                      "🛠️ <b>Skills required</b>\n"
-                      "• Communication\n"
-                      "• Time management\n"
-                      "• Proposal writing\n\n"
-                      "🚀 <b>How to start</b>\n"
-                      "1. Pick one skill\n"
-                      "2. Practise daily\n"
-                      "3. Build 3 sample projects\n"
-                      "4. Create a portfolio\n"
-                      "5. Apply only for relevant jobs\n\n"
-                      "💼 <b>Where to find legitimate work</b>\n"
-                      "<a href=\"https://www.upwork.com\">Upwork</a>\n"
-                      "<a href=\"https://www.fiverr.com\">Fiverr</a>\n"
-                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
-                      "<a href=\"https://www.naukri.com/freelance-jobs\">Naukri India</a>\n\n"
-                      "💰 <b>Earning reality</b>\n"
-                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
-                      "⚠️ <b>Scam warning</b>\n"
-                      "Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.\n\n"
-                      "📅 <b>7-day action plan</b>\n"
-                      "Day 1: Practise\nDay 2: Build sample\nDay 3: Portfolio\nDay 4: Apply\nDay 5: Improve\nDay 6: Network\nDay 7: Review progress\n\n"
-                      "🔗 <b>Useful resources</b>\n"
-                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
-                      "<a href=\"https://www.upwork.com/resources\">Upwork Resources</a>\n\n"
-                      "🎯 <b>Today's action</b>\n"
-                      "Create your first sample project.\n\n"
-                      "────────────────\n"
-                      "<b>EarnSmart India</b>\n"
-                      "Learn • Work • Earn Safely\n"
-                      "────────────────"
-                  )
-              },
               {
                   "title": "Excel Skills for Office Jobs",
                   "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
@@ -141,31 +79,48 @@ jobs:
                       "Excel is used in Indian offices for data entry, analysis, and reporting.\n\n"
                       "🛠️ <b>Skills required</b>\n"
                       "• Basic formulas (SUM, AVERAGE)\n"
-                      "• Data sorting & filtering\n"
                       "• Pivot tables\n"
-                      "• Charts & graphs\n\n"
-                      "🚀 <b>How to start</b>\n"
-                      "1. Install Microsoft Excel or Google Sheets\n"
-                      "2. Learn formulas from free YouTube tutorials\n"
-                      "3. Practise with sample office data\n"
-                      "4. Create a mini project (sales report)\n"
-                      "5. Share your project on LinkedIn\n\n"
+                      "• Charts\n\n"
                       "💼 <b>Where to find legitimate work</b>\n"
                       "<a href=\"https://www.naukri.com/excel-jobs\">Naukri</a>\n"
-                      "<a href=\"https://www.linkedin.com/jobs/excel\">LinkedIn Jobs</a>\n"
-                      "<a href=\"https://internshala.com\">Internshala</a>\n\n"
+                      "<a href=\"https://www.linkedin.com/jobs/excel\">LinkedIn Jobs</a>\n\n"
                       "💰 <b>Earning reality</b>\n"
-                      "Entry‑level Excel jobs in India pay ₹8,000–₹20,000/month depending on company and workload.\n\n"
+                      "Entry‑level Excel jobs in India pay ₹8,000–₹20,000/month.\n\n"
                       "⚠️ <b>Scam warning</b>\n"
-                      "Avoid fake 'Excel typing jobs' that ask for deposits.\n\n"
-                      "📅 <b>7-day action plan</b>\n"
-                      "Day 1: Learn formulas\nDay 2: Practise sorting\nDay 3: Create charts\nDay 4: Build pivot table\nDay 5: Make a sales report\nDay 6: Share portfolio\nDay 7: Apply for jobs\n\n"
-                      "🔗 <b>Useful resources</b>\n"
-                      "<a href=\"https://support.microsoft.com/en-us/excel\">Microsoft Excel Help</a>\n"
-                      "<a href=\"https://www.youtube.com/results?search_query=excel+tutorial\">YouTube Excel Tutorials</a>\n\n"
+                      "Avoid fake 'Excel typing jobs' requiring deposits.\n\n"
                       "🎯 <b>Today's action</b>\n"
-                      "Practise SUM and AVERAGE formulas on a dataset.\n\n"
+                      "Practise SUM and AVERAGE formulas.\n\n"
                       "────────────────\n"
                       "<b>EarnSmart India</b>\n"
                       "Learn • Work • Earn Safely\n"
                       "────────────────"
+                  )
+              }
+              # Add 35 more topics in same safe format
+          ]
+
+          day_index = today.timetuple().tm_yday - 1
+          start_index = (day_index * 3) % len(topics)
+          selected_topic = topics[(start_index + slot) % len(topics)]
+
+          print(f"India date: {date_str}")
+          print(f"Post slot: {slot+1}")
+          print(f"Selected topic: {selected_topic['title']}")
+          print(f"Image URL: {selected_topic['image']}")
+
+          telegram_request("sendPhoto", {
+              "chat_id": CHAT_ID,
+              "photo": selected_topic["image"],
+              "caption": f"📅 {date_str}\n🎯 {selected_topic['title']}",
+              "parse_mode": "HTML"
+          })
+
+          telegram_request("sendMessage", {
+              "chat_id": CHAT_ID,
+              "text": selected_topic["content"],
+              "parse_mode": "HTML",
+              "disable_web_page_preview": True
+          })
+
+          print("Telegram post published successfully")
+          PY
