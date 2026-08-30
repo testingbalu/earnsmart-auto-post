@@ -107,7 +107,6 @@ Day 7: Review progress and improve
 Learn • Work • Earn Safely
 ━━━━━━━━━━━━━━"""
               }
-              # Add other topics here...
           ]
 
           index = datetime.now().timetuple().tm_yday % len(topics)
