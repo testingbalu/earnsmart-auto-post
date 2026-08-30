@@ -89,8 +89,48 @@ jobs:
           else:
               slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
 
-          # Advanced topic database (sample of 36 topics shown here)
+          # Example topic database (expand to 36 topics)
           topics = [
+              {
+                  "title": "Freelancing for Beginners",
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
+                  "content": (
+                      f"📅 {date_str}\n\n"
+                      "🎯 <b>Freelancing for Beginners</b>\n\n"
+                      "📌 <b>What is this work?</b>\n"
+                      "Offer one skill as a service online.\n\n"
+                      "🛠️ <b>Skills required</b>\n"
+                      "• Communication\n"
+                      "• Time management\n"
+                      "• Proposal writing\n\n"
+                      "🚀 <b>How to start</b>\n"
+                      "1. Pick one skill\n"
+                      "2. Practise daily\n"
+                      "3. Build 3 sample projects\n"
+                      "4. Create a portfolio\n"
+                      "5. Apply only for relevant jobs\n\n"
+                      "💼 <b>Where to find legitimate work</b>\n"
+                      "<a href=\"https://www.upwork.com\">Upwork</a>\n"
+                      "<a href=\"https://www.fiverr.com\">Fiverr</a>\n"
+                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
+                      "<a href=\"https://www.naukri.com/freelance-jobs\">Naukri India</a>\n\n"
+                      "💰 <b>Earning reality</b>\n"
+                      "Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.\n\n"
+                      "⚠️ <b>Scam warning</b>\n"
+                      "Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.\n\n"
+                      "📅 <b>7-day action plan</b>\n"
+                      "Day 1: Practise\nDay 2: Build sample\nDay 3: Portfolio\nDay 4: Apply\nDay 5: Improve\nDay 6: Network\nDay 7: Review progress\n\n"
+                      "🔗 <b>Useful resources</b>\n"
+                      "<a href=\"https://www.freelancer.com\">Freelancer</a>\n"
+                      "<a href=\"https://www.upwork.com/resources\">Upwork Resources</a>\n\n"
+                      "🎯 <b>Today's action</b>\n"
+                      "Create your first sample project.\n\n"
+                      "────────────────\n"
+                      "<b>EarnSmart India</b>\n"
+                      "Learn • Work • Earn Safely\n"
+                      "────────────────"
+                  )
+              },
               {
                   "title": "Excel Skills for Office Jobs",
                   "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
@@ -122,45 +162,4 @@ jobs:
                       "Day 1: Learn formulas\nDay 2: Practise sorting\nDay 3: Create charts\nDay 4: Build pivot table\nDay 5: Make a sales report\nDay 6: Share portfolio\nDay 7: Apply for jobs\n\n"
                       "🔗 <b>Useful resources</b>\n"
                       "<a href=\"https://support.microsoft.com/en-us/excel\">Microsoft Excel Help</a>\n"
-                      "<a href=\"https://www.youtube.com/results?search_query=excel+tutorial\">YouTube Excel Tutorials</a>\n\n"
-                      "🎯 <b>Today's action</b>\n"
-                      "Practise SUM and AVERAGE formulas on a dataset.\n\n"
-                      "────────────────\n"
-                      "<b>EarnSmart India</b>\n"
-                      "Learn • Work • Earn Safely\n"
-                      "────────────────"
-                  )
-              },
-              {
-                  "title": "Video Editing for YouTube Creators",
-                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
-                  "content": (
-                      f"📅 {date_str}\n\n"
-                      "🎯 <b>Video Editing for YouTube Creators</b>\n\n"
-                      "📌 <b>What is this work?</b>\n"
-                      "Editors cut, polish, and enhance raw footage for creators.\n\n"
-                      "🛠️ <b>Skills required</b>\n"
-                      "• CapCut or DaVinci Resolve\n"
-                      "• Storytelling\n"
-                      "• Audio mixing\n"
-                      "• Subtitles\n\n"
-                      "🚀 <b>How to start</b>\n"
-                      "1. Install free editing software\n"
-                      "2. Practise with stock footage\n"
-                      "3. Create 3 sample reels\n"
-                      "4. Build a showreel portfolio\n"
-                      "5. Offer services to small creators\n\n"
-                      "💼 <b>Where to find legitimate work</b>\n"
-                      "<a href=\"https://www.fiverr.com/categories/video-animation/video-editing\">Fiverr</a>\n"
-                      "<a href=\"https://www.upwork.com/freelance-jobs/video-editing/\">Upwork</a>\n"
-                      "<a href=\"https://www.linkedin.com/jobs/video-editing\">LinkedIn Jobs</a>\n\n"
-                      "💰 <b>Earning reality</b>\n"
-                      "Beginners in India often earn ₹5,000–₹15,000/month depending on workload.\n\n"
-                      "⚠️ <b>Scam warning</b>\n"
-                      "Avoid fake 'YouTube monetization' schemes.\n\n"
-                      "📅 <b>7-day action plan</b>\n"
-                      "Day 1: Learn basics\nDay 2: Practise\nDay 3: Create samples\nDay 4: Build showreel\nDay 5: Apply\nDay 6: Network\nDay 7: Review progress\n\n"
-                      "🔗 <b>Useful resources</b>\n"
-                      "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
-                      "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
-                      "🎯 <
+                      "<a href=\"https://www.youtube.com/results?search_query=excel+tutorial\">YouTube Excel
