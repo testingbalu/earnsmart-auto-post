@@ -49,7 +49,7 @@ jobs:
           elif [ "$HOUR" -ge 12 ] && [ "$HOUR" -lt 17 ]; then
             echo "type=quiz" >> "$GITHUB_OUTPUT"
           else
-            echo "type=knowledge" >> "$GITHUB_OUTPUT"
+            echo "type=quote" >> "$GITHUB_OUTPUT"
           fi
 
           echo "IST hour: $HOUR"
