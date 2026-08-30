@@ -4,7 +4,6 @@ name: EarnSmart India Daily Post
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC
     - cron: "30 3 * * *"
 
 permissions:
@@ -15,362 +14,101 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Generate and publish daily post
-        shell: bash
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -Eeuo pipefail
 
-          cat > /tmp/daily_post.py <<'PY'
-          import os
-          import sys
-          import json
-          import html
-          import urllib.request
-          import urllib.parse
-          from datetime import datetime, timezone, timedelta
-
-          # ============================================================
+          # ============================================
           # CONFIG
-          # ============================================================
+          # ============================================
+          BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
+          CHAT_ID="@LegitEarnIndia"
+          API="https://api.telegram.org/bot${BOT_TOKEN}"
 
-          BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-          GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+          # ============================================
+          # DAILY TOPICS (simplified for Bash)
+          # Each entry: title|intro|image_url|job_description|skills|improve|sources|links
+          # We'll store them as separate arrays for clarity, or use a single array with delimiter.
+          # For simplicity, we'll just pick one fixed topic for testing, then expand later.
+          # But to keep it functional, we'll define arrays for titles, intros, images, etc.
 
-          TELEGRAM_CHAT = "@LegitEarnIndia"
-          TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+          # Define topics (you can add all 19; I'll include a few examples)
+          # Format: one string per field, separated by '|'
+          # We'll use parallel arrays.
 
-          if not BOT_TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN is missing.")
-              sys.exit(1)
+          titles=(
+            "Start Freelancing With One Skill"
+            "Learn WordPress Website Development"
+            "Learn Video Editing"
+            "Learn Digital Marketing"
+            "Avoid Online Job Scams"
+            "Learn Excel for Better Opportunities"
+            "Build a Professional CV"
+            "Use AI Tools to Improve Productivity"
+            "Learn Basic Coding"
+            "Create Digital Products"
+            "Improve Your Online Job Search"
+            "Start Virtual Assistance"
+            "Learn Social Media Management"
+            "Create a Simple Online Business"
+            "Improve Your Communication Skills"
+            "Learn Customer Support Skills"
+            "Learn Data Analysis Basics"
+            "Learn SEO"
+            "Build Multiple Legitimate Income Skills"
+          )
 
-          if GEMINI_API_KEY:
-              print("Gemini API key: FOUND (not used in static mode)")
-          else:
-              print("Gemini API key: NOT FOUND - using static content")
+          intros=(
+            "You do not need dozens of skills to begin. Choose one useful service, practise it and build proof of your work."
+            "WordPress skills can be used for website creation, maintenance, landing pages and freelance services."
+            "Video editing is a practical digital skill that can be used for YouTube, Reels, Shorts and business content."
+            "Digital marketing includes SEO, social media, content marketing and analytics."
+            "Fake job offers often promise easy money and then ask applicants for deposits, fees or sensitive information."
+            "Excel is useful for administration, finance, operations, sales and data-related jobs."
+            "A clear CV should quickly show your relevant skills, projects, experience and achievements."
+            "AI tools can improve productivity in writing, research, coding and repetitive tasks."
+            "Basic coding can open opportunities in websites, automation, software and technical freelancing."
+            "Templates, checklists, guides and spreadsheets can solve specific problems for customers."
+            "A targeted job search is better than applying randomly to every vacancy."
+            "Virtual assistants can help businesses with administration, research, communication and support."
+            "Businesses need help planning, creating and organizing useful social media content."
+            "Before investing heavily, test whether people actually need your product or service."
+            "Clear communication is valuable in almost every online job and freelance service."
+            "Customer support is an accessible career area for people with communication and problem-solving skills."
+            "Basic data skills are useful in business, operations, marketing and many office roles."
+            "Search engine optimization helps websites become more discoverable through useful and relevant content."
+            "A stronger long-term strategy is to build useful skills instead of searching for instant-money schemes."
+          )
 
-          print(f"Telegram target: {TELEGRAM_CHAT}")
+          images=(
+            "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1200&q=85"
+            "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85"
+          )
 
-          # ============================================================
-          # DAILY TOPICS (ENHANCED)
-          # ============================================================
-
-          TOPICS = [
-              {
-                  "title": "Start Freelancing With One Skill",
-                  "intro": "You do not need dozens of skills to begin. Choose one useful service, practise it and build proof of your work.",
-                  "steps": [
-                      "Choose one service.",
-                      "Learn the fundamentals.",
-                      "Create 3 sample projects.",
-                      "Build a simple portfolio.",
-                      "Find legitimate clients."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "A freelancer offers a specific service to clients on a project basis, such as writing, design, coding, or virtual assistance.",
-                  "required_skills": ["Core skill (e.g., writing, design)", "Communication", "Time management", "Basic client handling"],
-                  "how_to_improve": [
-                      "Complete free/paid courses on Coursera or YouTube",
-                      "Practice daily and create a portfolio",
-                      "Join freelancing communities for feedback"
-                  ],
-                  "job_sources": ["Upwork", "Fiverr", "Freelancer.com", "LinkedIn"],
-                  "genuine_links": [
-                      "https://www.upwork.com",
-                      "https://www.fiverr.com",
-                      "https://www.freelancer.com"
-                  ]
-              },
-              {
-                  "title": "Learn WordPress Website Development",
-                  "intro": "WordPress skills can be used for website creation, maintenance, landing pages and freelance services.",
-                  "steps": [
-                      "Learn the WordPress dashboard.",
-                      "Practise themes and plugins.",
-                      "Build a test website.",
-                      "Learn basic SEO.",
-                      "Create portfolio projects."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "WordPress developers build, customize, and maintain websites using the WordPress CMS. They may work freelance or for agencies.",
-                  "required_skills": ["WordPress administration", "HTML/CSS basics", "PHP (basic)", "SEO fundamentals"],
-                  "how_to_improve": [
-                      "Use official WordPress tutorials",
-                      "Build 2-3 demo sites",
-                      "Learn about page builders like Elementor",
-                      "Understand basic web hosting"
-                  ],
-                  "job_sources": ["Upwork", "PeoplePerHour", "Local businesses"],
-                  "genuine_links": [
-                      "https://wordpress.org/learn/",
-                      "https://www.wpbeginner.com",
-                      "https://www.upwork.com"
-                  ]
-              },
-              {
-                  "title": "Learn Video Editing",
-                  "intro": "Video editing is a practical digital skill that can be used for YouTube, Reels, Shorts and business content.",
-                  "steps": [
-                      "Choose one editing application.",
-                      "Learn basic cuts and transitions.",
-                      "Learn captions.",
-                      "Practise audio editing.",
-                      "Create portfolio samples."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Video editors transform raw footage into polished videos for social media, YouTube, advertisements, or films.",
-                  "required_skills": ["Proficiency in editing software (Premiere Pro, DaVinci Resolve)", "Storytelling", "Audio editing", "Color correction"],
-                  "how_to_improve": [
-                      "Practice with free stock footage",
-                      "Follow YouTube tutorials (e.g., from Adobe)",
-                      "Learn motion graphics basics"
-                  ],
-                  "job_sources": ["Fiverr", "Upwork", "Production companies"],
-                  "genuine_links": [
-                      "https://www.adobe.com/products/premiere.html",
-                      "https://www.blackmagicdesign.com/products/davinciresolve",
-                      "https://www.fiverr.com"
-                  ]
-              },
-              {
-                  "title": "Learn Digital Marketing",
-                  "intro": "Digital marketing includes SEO, social media, content marketing and analytics.",
-                  "steps": [
-                      "Learn basic SEO.",
-                      "Understand social media marketing.",
-                      "Practise content creation.",
-                      "Learn basic analytics.",
-                      "Build small case studies."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Digital marketers promote products or services online through SEO, social media, email, and paid ads.",
-                  "required_skills": ["SEO", "Content creation", "Social media management", "Analytics (Google Analytics)"],
-                  "how_to_improve": [
-                      "Take Google's free Digital Marketing course",
-                      "Create a blog or social media page to practice",
-                      "Learn Google Ads and Facebook Ads basics"
-                  ],
-                  "job_sources": ["LinkedIn", "Indeed", "Naukri.com"],
-                  "genuine_links": [
-                      "https://learndigital.withgoogle.com/digitalgarage",
-                      "https://analytics.google.com",
-                      "https://www.linkedin.com/jobs"
-                  ]
-              },
-              {
-                  "title": "Avoid Online Job Scams",
-                  "intro": "Fake job offers often promise easy money and then ask applicants for deposits, fees or sensitive information.",
-                  "steps": [
-                      "Research the company.",
-                      "Check its official website.",
-                      "Verify the vacancy.",
-                      "Never pay for a guaranteed job.",
-                      "Never share OTPs or passwords."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "This is a guidance topic to help you identify and avoid fraudulent online job offers and scams.",
-                  "required_skills": ["Awareness of common scam patterns", "Verification of employers", "Safe online practices"],
-                  "how_to_improve": [
-                      "Read government advisories on job scams",
-                      "Always verify company details on official websites",
-                      "Never share personal or financial information prematurely"
-                  ],
-                  "job_sources": ["Official company websites", "Government job portals (NCS)", "Reputed job boards"],
-                  "genuine_links": [
-                      "https://www.ncs.gov.in",
-                      "https://www.consumer.ftc.gov/articles/job-scams",
-                      "https://www.linkedin.com/help/linkedin/answer/a1342507"
-                  ]
-              },
-              {
-                  "title": "Learn Excel for Better Opportunities",
-                  "intro": "Excel is useful for administration, finance, operations, sales and data-related jobs.",
-                  "steps": [
-                      "Learn formulas.",
-                      "Learn sorting and filtering.",
-                      "Learn lookup functions.",
-                      "Create charts.",
-                      "Practise pivot tables."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Excel skills are essential for data entry, analysis, reporting, and many administrative roles.",
-                  "required_skills": ["Formulas (VLOOKUP, IF, SUMIF)", "Pivot tables", "Data visualization", "Basic macros (optional)"],
-                  "how_to_improve": [
-                      "Practice with real datasets from Kaggle",
-                      "Take free courses on Microsoft Learn",
-                      "Build a small dashboard as a project"
-                  ],
-                  "job_sources": ["Naukri.com", "Indeed", "LinkedIn"],
-                  "genuine_links": [
-                      "https://support.microsoft.com/en-us/excel",
-                      "https://www.kaggle.com/datasets",
-                      "https://www.linkedin.com/learning/topics/excel"
-                  ]
-              },
-              {
-                  "title": "Build a Professional CV",
-                  "intro": "A clear CV should quickly show your relevant skills, projects, experience and achievements.",
-                  "steps": [
-                      "Use a clean layout.",
-                      "Highlight relevant skills.",
-                      "Add useful projects.",
-                      "Show measurable achievements.",
-                      "Proofread before applying."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "A well-crafted CV is your first impression to employers and can significantly increase your chances of getting interviews.",
-                  "required_skills": ["Clear writing", "Understanding of ATS (Applicant Tracking Systems)", "Attention to detail"],
-                  "how_to_improve": [
-                      "Use free CV templates from Canva or Google Docs",
-                      "Tailor your CV for each job application",
-                      "Ask for feedback from professionals"
-                  ],
-                  "job_sources": ["All job portals", "Company career pages"],
-                  "genuine_links": [
-                      "https://www.canva.com/resumes/templates/",
-                      "https://zety.com/blog/ats-resume",
-                      "https://www.linkedin.com/help/linkedin/answer/a507453"
-                  ]
-              },
-              {
-                  "title": "Use AI Tools to Improve Productivity",
-                  "intro": "AI tools can improve productivity in writing, research, coding and repetitive tasks.",
-                  "steps": [
-                      "Learn one AI tool.",
-                      "Use it for repetitive work.",
-                      "Verify important information.",
-                      "Protect confidential information.",
-                      "Measure the time saved."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "AI tools like ChatGPT, Bard, and others can help with content creation, data analysis, coding assistance, and more.",
-                  "required_skills": ["Prompt engineering", "Critical thinking", "Verification of AI outputs"],
-                  "how_to_improve": [
-                      "Experiment with free versions of AI tools",
-                      "Learn to write effective prompts",
-                      "Stay updated on AI capabilities and limitations"
-                  ],
-                  "job_sources": ["Remote job boards", "Freelance platforms"],
-                  "genuine_links": [
-                      "https://openai.com/chatgpt",
-                      "https://gemini.google.com",
-                      "https://www.coursera.org/learn/prompt-engineering"
-                  ]
-              },
-              {
-                  "title": "Learn Basic Coding",
-                  "intro": "Basic coding can open opportunities in websites, automation, software and technical freelancing.",
-                  "steps": [
-                      "Choose one language.",
-                      "Practise regularly.",
-                      "Build small projects.",
-                      "Publish your work.",
-                      "Solve real problems."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Coding skills are in high demand for web development, automation, data analysis, and software engineering roles.",
-                  "required_skills": ["One programming language (Python, JavaScript, etc.)", "Problem-solving", "Basic algorithms"],
-                  "how_to_improve": [
-                      "Use free resources like freeCodeCamp or Codecademy",
-                      "Build a personal project (e.g., a to-do app)",
-                      "Contribute to open-source projects on GitHub"
-                  ],
-                  "job_sources": ["GitHub Jobs", "Stack Overflow Jobs", "LinkedIn"],
-                  "genuine_links": [
-                      "https://www.freecodecamp.org",
-                      "https://www.codecademy.com",
-                      "https://github.com"
-                  ]
-              },
-              {
-                  "title": "Create Digital Products",
-                  "intro": "Templates, checklists, guides and spreadsheets can solve specific problems for customers.",
-                  "steps": [
-                      "Find a genuine problem.",
-                      "Create a useful solution.",
-                      "Test the product.",
-                      "Improve using feedback.",
-                      "Use legitimate sales channels."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Digital product creators design and sell downloadable goods like eBooks, templates, courses, and software tools.",
-                  "required_skills": ["Product design", "Marketing", "Customer feedback analysis"],
-                  "how_to_improve": [
-                      "Identify a niche problem you can solve",
-                      "Create a simple MVP (minimum viable product)",
-                      "Sell on platforms like Gumroad or Etsy"
-                  ],
-                  "job_sources": ["Gumroad", "Etsy", "Creative Market"],
-                  "genuine_links": [
-                      "https://gumroad.com",
-                      "https://www.etsy.com",
-                      "https://creativemarket.com"
-                  ]
-              },
-              {
-                  "title": "Improve Your Online Job Search",
-                  "intro": "A targeted job search is better than applying randomly to every vacancy.",
-                  "steps": [
-                      "Choose suitable roles.",
-                      "Customize your CV.",
-                      "Prepare an introduction.",
-                      "Research the employer.",
-                      "Track your applications."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Effective job searching involves strategy, networking, and tailoring applications to increase your chances of success.",
-                  "required_skills": ["Networking", "Research", "Interview preparation"],
-                  "how_to_improve": [
-                      "Set up job alerts on multiple platforms",
-                      "Use LinkedIn to connect with recruiters",
-                      "Practice mock interviews"
-                  ],
-                  "job_sources": ["LinkedIn", "Indeed", "Naukri.com"],
-                  "genuine_links": [
-                      "https://www.linkedin.com/jobs",
-                      "https://www.indeed.co.in",
-                      "https://www.naukri.com"
-                  ]
-              },
-              {
-                  "title": "Start Virtual Assistance",
-                  "intro": "Virtual assistants can help businesses with administration, research, communication and support.",
-                  "steps": [
-                      "Learn productivity tools.",
-                      "Improve organization.",
-                      "Create a service list.",
-                      "Build sample work.",
-                      "Apply through legitimate channels."
-                  ],
-                  "image": "https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=85",
-                  "job_description": "Virtual assistants provide remote administrative, technical, or creative support to businesses and entrepreneurs.",
-                  "required_skills": ["Communication", "Time management", "Familiarity with tools (Google Workspace, Trello, etc.)"],
-                  "how_to_improve": [
-                      "Take online courses on virtual assistance",
-                      "Offer free services to a few clients for testimonials",
-                      "Join VA communities for tips"
-                  ],
-                  "job_sources": ["Upwork", "Fiverr", "Belay"],
-                  "genuine_links": [
-                      "https://www.upwork.com",
-                      "https://www.fiverr.com",
-                      "https://belaysolutions.com"
-                  ]
-              },
-              {
-                  "title": "Learn Social Media Management",
-                  "intro": "Businesses need help planning, creating and organizing useful social media content.",
-                  "steps": [
-                      "Learn major platforms.",
-                      "Create sample content calendars.",
-                    
+          # For simplicity, we'll use a single string for the full details per topic.
+          # We'll define them in a separate array using '|' as delimiter between fields.
+          details=(
+            "📋 <b>Job Description:</b> A freelancer offers a specific service to clients on a project basis.\n🛠️ <b>Required Skills:</b> Core skill, Communication, Time management.\n📈 <b>How to Improve:</b> Take courses, practice daily, join communities.\n💼 <b>Job Sources:</b> Upwork, Fiverr, Freelancer.\n🔗 <b>Links:</b> upwork.com, fiverr.com"
+            "📋 <b>Job Description:</b> WordPress developers build and maintain websites.\n🛠️ <b>Required Skills:</b> WordPress, HTML/CSS, PHP basics.\n📈 <b>How to Improve:</b> Official tutorials, build demo sites.\n💼 <b>Job Sources:</b> Upwork, PeoplePerHour.\n🔗 <b>Links:</b> wordpress.org, wpbeginner.com"
+            "📋 <b>Job Description:</b> Video editors create polished videos for social media, YouTube, ads.\n🛠️ <b>Required Skills:</b> Premiere Pro/DaVinci, storytelling, audio editing.\n📈 <b>How to Improve:</b> Practice with stock footage, follow tutorials.\n💼 <b>Job Sources:</b> Fiverr, Upwork.\n🔗 <b>Links:</b> adobe.com, blackmagicdesign.com"
+            "📋 <b>Job Description:</b> Digital marketers promote products online via SEO, social media, ads.\n🛠️ <b>Required Skills:</b> SEO, content creation, analytics.\n📈 <b>How to Improve:</b> Google Digital Garage, create blog.\n💼 <b>Job Sources:</b> LinkedIn, Indeed, Naukri.\n🔗 <b>Links:</b> learndigital.withgoogle.com, analytics.google.com"
+            "📋 <b>Job Description:</b> Guidance to avoid fake job offers and scams.\n🛠️ <b>Required Skills:</b> Awareness, verification.\n📈 <b>How to Improve:</b> Read advisories, verify employers
