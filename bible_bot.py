@@ -22,7 +22,7 @@ POST_TYPE = os.environ.get("POST_TYPE", "verse")
 # You can change this later if required.
 GEMINI_MODEL = os.environ.get(
     "GEMINI_MODEL",
-    "gemini-2.5-flash"
+    "gemini-3.5-flash"
 )
 
 TELEGRAM_API = (
