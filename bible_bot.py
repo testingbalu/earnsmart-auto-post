@@ -1,156 +1,65 @@
 import os
 import json
-import random
-import textwrap
-from datetime import datetime
-from pathlib import Path
-
+import re
 import requests
+from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFont
 
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+CHANNEL_ID = os.environ["BIBLE_CHANNEL_ID"]
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
+HISTORY_FILE = "posting_history.json"
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-BIBLE_CHANNEL_ID = os.environ.get("BIBLE_CHANNEL_ID")
-
-POST_TYPE = os.environ.get("POST_TYPE", "verse")
-
-# Keep the model that is currently working in your repository.
-GEMINI_MODEL = os.environ.get(
-    "GEMINI_MODEL",
-    "gemini-3.5-flash"
-)
-
-TELEGRAM_API = (
-    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
-)
-
-GEMINI_API = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{GEMINI_MODEL}:generateContent"
-)
-
-DATA_DIR = Path("data")
-HISTORY_FILE = DATA_DIR / "bible_history.json"
-
-DATA_DIR.mkdir(exist_ok=True)
+# Try the model from your previous error first,
+# then automatically try the newer model if necessary.
+GEMINI_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.7-flash"
+]
 
 
-# ============================================================
-# BASIC VALIDATION
-# ============================================================
+# =========================================================
+# HISTORY
+# =========================================================
 
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY secret is missing.")
-
-if not TELEGRAM_BOT_TOKEN:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN secret is missing.")
-
-if not BIBLE_CHANNEL_ID:
-    raise RuntimeError(
-        "BIBLE_CHANNEL_ID secret is missing."
-    )
-
-
-# ============================================================
-# TELEGRAM
-# ============================================================
-
-def telegram_request(method, payload=None, files=None):
-
-    url = f"{TELEGRAM_API}/{method}"
-
-    response = requests.post(
-        url,
-        data=payload,
-        files=files,
-        timeout=60
-    )
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
 
     try:
-        result = response.json()
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if isinstance(data, list):
+            return data
+
     except Exception:
-        raise RuntimeError(
-            f"Telegram returned invalid response: "
-            f"{response.text[:500]}"
-        )
+        pass
 
-    if not result.get("ok"):
-        raise RuntimeError(
-            f"Telegram API error: {result}"
-        )
-
-    return result
+    return []
 
 
-def send_message(text):
-
-    return telegram_request(
-        "sendMessage",
-        {
-            "chat_id": BIBLE_CHANNEL_ID,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True
-        }
-    )
-
-
-def send_photo(image_path, caption):
-
-    with open(image_path, "rb") as photo:
-
-        return telegram_request(
-            "sendPhoto",
-            payload={
-                "chat_id": BIBLE_CHANNEL_ID,
-                "caption": caption,
-                "parse_mode": "HTML"
-            },
-            files={
-                "photo": photo
-            }
+def save_history(history):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(
+            history[-100:],
+            f,
+            ensure_ascii=False,
+            indent=2
         )
 
 
-def send_quiz(
-    question,
-    options,
-    correct_index,
-    explanation
-):
-
-    return telegram_request(
-        "sendPoll",
-        {
-            "chat_id": BIBLE_CHANNEL_ID,
-            "question": question,
-            "options": json.dumps(
-                options,
-                ensure_ascii=False
-            ),
-            "type": "quiz",
-            "correct_option_id": str(correct_index),
-            "is_anonymous": "true",
-            "explanation": explanation,
-            "explanation_parse_mode": "HTML"
-        }
-    )
-
-
-# ============================================================
+# =========================================================
 # GEMINI
-# ============================================================
+# =========================================================
 
 def gemini(prompt):
 
     payload = {
         "contents": [
             {
+                "role": "user",
                 "parts": [
                     {
                         "text": prompt
@@ -159,545 +68,268 @@ def gemini(prompt):
             }
         ],
         "generationConfig": {
-            "temperature": 0.65,
+            "temperature": 0.8,
             "responseMimeType": "application/json"
         }
     }
 
-    response = requests.post(
-        GEMINI_API,
-        params={
-            "key": GEMINI_API_KEY
-        },
-        json=payload,
-        timeout=90
-    )
+    last_error = None
 
-    if response.status_code != 200:
+    for model in GEMINI_MODELS:
 
-        raise RuntimeError(
-            f"Gemini API error {response.status_code}: "
-            f"{response.text[:1000]}"
+        url = (
+            "https://generativelanguage.googleapis.com/"
+            f"v1beta/models/{model}:generateContent"
         )
 
-    data = response.json()
+        try:
 
-    try:
-
-        text = (
-            data["candidates"][0]
-            ["content"]["parts"][0]["text"]
-        )
-
-    except Exception:
-
-        raise RuntimeError(
-            f"Unexpected Gemini response: {data}"
-        )
-
-    text = text.strip()
-
-    # Remove accidental markdown fences.
-
-    if text.startswith("```"):
-
-        text = text.replace(
-            "```json",
-            "",
-            1
-        )
-
-        text = text.replace(
-            "```",
-            ""
-        )
-
-        text = text.strip()
-
-    try:
-
-        return json.loads(text)
-
-    except json.JSONDecodeError:
-
-        raise RuntimeError(
-            f"Gemini did not return valid JSON:\n{text}"
-        )
-
-
-# ============================================================
-# HISTORY
-# ============================================================
-
-def load_history():
-
-    if not HISTORY_FILE.exists():
-
-        return {
-            "verses": [],
-            "quizzes": [],
-            "knowledge": []
-        }
-
-    try:
-
-        with open(
-            HISTORY_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            history = json.load(f)
-
-            # Make sure old history files still work.
-
-            history.setdefault(
-                "verses",
-                []
+            response = requests.post(
+                url,
+                headers={
+                    "x-goog-api-key": GEMINI_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=60
             )
 
-            history.setdefault(
-                "quizzes",
-                []
+            if response.ok:
+
+                body = response.json()
+
+                text = (
+                    body["candidates"][0]
+                    ["content"]["parts"][0]["text"]
+                )
+
+                text = text.strip()
+
+                text = re.sub(
+                    r"^```json\s*",
+                    "",
+                    text,
+                    flags=re.IGNORECASE
+                )
+
+                text = re.sub(
+                    r"\s*```$",
+                    "",
+                    text,
+                    flags=re.IGNORECASE
+                )
+
+                return json.loads(text)
+
+            last_error = (
+                f"{model}: HTTP {response.status_code} "
+                f"{response.text[:500]}"
             )
 
-            history.setdefault(
-                "knowledge",
-                []
-            )
+            # If model is not found, try next model.
+            if response.status_code == 404:
+                continue
 
-            return history
+            break
 
-    except Exception:
-
-        return {
-            "verses": [],
-            "quizzes": [],
-            "knowledge": []
-        }
-
-
-def save_history(history):
-
-    with open(
-        HISTORY_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            history,
-            f,
-            ensure_ascii=False,
-            indent=2
-        )
-
-
-# ============================================================
-# BIBLE VERSE GENERATION
-# ============================================================
-
-def generate_verse(history):
-
-    previous = history.get(
-        "verses",
-        []
-    )[-50:]
-
-    prompt = f"""
-You are creating content for the Telugu Christian Telegram
-channel "TeluguChristiansWorld".
-
-Create ONE daily Bible verse post.
-
-IMPORTANT RULES:
-
-1. Write in natural Telugu.
-2. Use a genuine Bible verse.
-3. Never invent a Bible verse.
-4. Never create a fake Bible reference.
-5. Do not paraphrase the actual verse.
-6. Use commonly recognized Telugu Bible wording.
-7. Select an encouraging, meaningful verse.
-8. Avoid recently used references.
-9. The short message should be useful and spiritually encouraging.
-10. Do not include political, unrelated, promotional or job content.
-
-Recently used Bible references:
-
-{json.dumps(previous, ensure_ascii=False)}
-
-Return ONLY valid JSON:
-
-{{
-  "reference": "బైబిల్ గ్రంథం అధ్యాయం:వచనం",
-  "verse": "తెలుగు బైబిల్ వచనం",
-  "short_message": "ఈ వాక్యం మనకు ఇచ్చే చిన్న ప్రోత్సాహక సందేశం"
-}}
-"""
-
-    return gemini(prompt)
-
-
-# ============================================================
-# HIGH QUALITY BIBLE QUIZ
-# ============================================================
-
-def generate_quiz(history):
-
-    previous = history.get(
-        "quizzes",
-        []
-    )[-100:]
-
-    prompt = f"""
-You are an expert Telugu Bible teacher and Bible quiz creator.
-
-Create ONE high-quality Bible quiz for the Telegram channel:
-
-TeluguChristiansWorld
-
-The purpose is:
-- Bible learning
-- Reader engagement
-- Accurate Scripture knowledge
-- Easy-to-understand Telugu
-
-STRICT RULES:
-
-1. The question MUST be based directly on the Bible.
-2. Use natural Telugu.
-3. Do not use awkward machine-translated Telugu.
-4. Exactly FOUR answer options.
-5. Exactly ONE option is correct.
-6. The correct answer must be clearly supported by Scripture.
-7. Give the exact Bible reference supporting the answer.
-8. Do NOT create opinion questions.
-9. Do NOT create trick questions.
-10. Do NOT create ambiguous questions.
-11. Do NOT invent Bible facts.
-12. Do NOT invent people, places or events.
-13. Do NOT mix two unrelated Bible facts.
-14. Do NOT repeat a recently used question.
-15. Wrong options should be believable but incorrect.
-16. The question should teach something useful.
-17. Vary topics between:
-    - Bible people
-    - prophets
-    - apostles
-    - kings
-    - women in the Bible
-    - miracles
-    - places
-    - numbers
-    - books
-    - teachings
-    - important events
-    - Old Testament
-    - New Testament
-18. Mix easy, medium and difficult questions.
-19. Avoid making every question extremely easy.
-20. Keep the question short enough for a Telegram quiz.
-21. The explanation must clearly say why the correct answer is correct.
-22. The explanation must be consistent with the Bible reference.
-23. Do not include URLs.
-24. Do not include advertisements.
-25. Do not include job links.
-26. Do not include unrelated content.
-
-Recently used questions:
-
-{json.dumps(previous, ensure_ascii=False)}
-
-Return ONLY valid JSON.
-
-Use exactly this structure:
-
-{{
-  "question": "బైబిల్ ఆధారంగా ప్రశ్న?",
-  "options": [
-    "ఎంపిక 1",
-    "ఎంపిక 2",
-    "ఎంపిక 3",
-    "ఎంపిక 4"
-  ],
-  "correct_index": 0,
-  "reference": "బైబిల్ గ్రంథం అధ్యాయం:వచనం",
-  "explanation": "సరైన సమాధానం ఎందుకు సరైనదో స్పష్టంగా వివరించే చిన్న వివరణ."
-}}
-
-IMPORTANT:
-
-correct_index must be:
-0 for option 1
-1 for option 2
-2 for option 3
-3 for option 4
-"""
-
-    return gemini(prompt)
-
-
-# ============================================================
-# BIBLE KNOWLEDGE QUIZ
-# ============================================================
-
-def generate_knowledge(history):
-
-    previous = history.get(
-        "knowledge",
-        []
-    )[-100:]
-
-    prompt = f"""
-You are an expert Telugu Bible teacher.
-
-Create ONE interesting Bible knowledge quiz for:
-
-TeluguChristiansWorld
-
-This should make Telugu Christians want to learn more
-about the Bible.
-
-STRICT RULES:
-
-1. Telugu language.
-2. Natural Telugu.
-3. Bible-based.
-4. Factually accurate.
-5. Exactly four options.
-6. Exactly one correct answer.
-7. The answer must be supported by Scripture.
-8. Include the Bible reference.
-9. No trick questions.
-10. No opinion questions.
-11. No ambiguous questions.
-12. No invented facts.
-13. No fake Bible references.
-14. Do not repeat recently used questions.
-15. Wrong options must be plausible.
-16. Make the question educational.
-17. Vary the topic.
-18. Mix Old Testament and New Testament.
-19. Mix easy, medium and difficult questions.
-20. Keep the question concise.
-21. Give a useful explanation.
-22. No advertisements.
-23. No job links.
-24. No unrelated content.
-25. No URLs.
-
-Previously used questions:
-
-{json.dumps(previous, ensure_ascii=False)}
-
-Return ONLY valid JSON:
-
-{{
-  "question": "బైబిల్ జ్ఞాన ప్రశ్న?",
-  "options": [
-    "ఎంపిక 1",
-    "ఎంపిక 2",
-    "ఎంపిక 3",
-    "ఎంపిక 4"
-  ],
-  "correct_index": 0,
-  "reference": "బైబిల్ గ్రంథం అధ్యాయం:వచనం",
-  "explanation": "సరైన సమాధానం మరియు బైబిల్ ఆధారాన్ని వివరించే చిన్న వివరణ."
-}}
-
-correct_index:
-0 = option 1
-1 = option 2
-2 = option 3
-3 = option 4
-"""
-
-    return gemini(prompt)
-
-
-# ============================================================
-# IMAGE / TELUGU FONT
-# ============================================================
-
-def get_telugu_font(size):
-
-    possible_fonts = [
-
-        "/usr/share/fonts/truetype/noto/"
-        "NotoSansTelugu-Regular.ttf",
-
-        "/usr/share/fonts/opentype/noto/"
-        "NotoSansTelugu-Regular.ttf",
-
-        "/usr/share/fonts/truetype/noto/"
-        "NotoSerifTelugu-Regular.ttf"
-    ]
-
-    for font in possible_fonts:
-
-        if os.path.exists(font):
-
-            return ImageFont.truetype(
-                font,
-                size
-            )
+        except Exception as e:
+            last_error = str(e)
 
     raise RuntimeError(
+        f"Gemini API failed: {last_error}"
+    )
+
+
+# =========================================================
+# TELEGRAM
+# =========================================================
+
+def telegram(method, data):
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{BOT_TOKEN}/{method}"
+    )
+
+    response = requests.post(
+        url,
+        data=data,
+        timeout=60
+    )
+
+    try:
+        body = response.json()
+    except Exception:
+        body = {
+            "ok": False,
+            "description": response.text
+        }
+
+    if not body.get("ok"):
+
+        raise RuntimeError(
+            f"Telegram API error: {body}"
+        )
+
+    return body["result"]
+
+
+# =========================================================
+# TELUGU FONT
+# =========================================================
+
+def find_telugu_font():
+
+    fonts = [
+        "/usr/share/fonts/truetype/noto/"
+        "NotoSansTelugu-Regular.ttf",
+
+        "/usr/share/fonts/truetype/noto/"
+        "NotoSansTelugu-Medium.ttf",
+
+        "/usr/share/fonts/opentype/noto/"
+        "NotoSansTelugu-Regular.ttf"
+    ]
+
+    for font in fonts:
+
+        if os.path.exists(font):
+            return font
+
+    raise FileNotFoundError(
         "Telugu font not found."
     )
 
 
-def get_font(
-    size,
-    bold=False
+# =========================================================
+# CREATE BIBLE QUOTE IMAGE
+# =========================================================
+
+def make_quote_image(
+    text,
+    reference,
+    output="quote_card.png"
 ):
 
-    if bold:
-
-        possible = [
-
-            "/usr/share/fonts/truetype/noto/"
-            "NotoSansTelugu-Bold.ttf",
-
-            "/usr/share/fonts/opentype/noto/"
-            "NotoSansTelugu-Bold.ttf"
-        ]
-
-        for path in possible:
-
-            if os.path.exists(path):
-
-                return ImageFont.truetype(
-                    path,
-                    size
-                )
-
-    return get_telugu_font(size)
-
-
-# ============================================================
-# BIBLE VERSE IMAGE
-# ============================================================
-
-def create_bible_image(verse_data):
-
     width = 1080
-    height = 1350
+    height = 1080
 
     image = Image.new(
         "RGB",
         (width, height),
-        (18, 35, 45)
+        (18, 28, 38)
     )
 
     draw = ImageDraw.Draw(image)
 
-    # --------------------------------------------------------
-    # SKY GRADIENT
-    # --------------------------------------------------------
-
+    # Background gradient
     for y in range(height):
 
-        ratio = y / height
+        if y < 760:
 
-        r = int(
-            20 + 80 * ratio
-        )
+            t = y / 760
 
-        g = int(
-            35 + 50 * ratio
-        )
+            r = int(18 + 42 * t)
+            g = int(28 + 55 * t)
+            b = int(38 + 60 * t)
 
-        b = int(
-            55 + 15 * ratio
-        )
+        else:
+
+            t = (y - 760) / 320
+
+            r = int(60 - 30 * t)
+            g = int(45 - 20 * t)
+            b = int(35 - 10 * t)
 
         draw.line(
-            [(0, y), (width, y)],
+            (0, y, width, y),
             fill=(r, g, b)
         )
 
-    # --------------------------------------------------------
-    # SUN
-    # --------------------------------------------------------
-
-    sun_x = 850
-    sun_y = 220
-    sun_r = 115
-
-    draw.ellipse(
-        [
-            sun_x - sun_r,
-            sun_y - sun_r,
-            sun_x + sun_r,
-            sun_y + sun_r
-        ],
-        fill=(245, 190, 90)
-    )
-
-    # --------------------------------------------------------
-    # MOUNTAIN
-    # --------------------------------------------------------
-
+    # Mountain
     mountain = [
-        (0, 980),
-        (180, 850),
-        (330, 930),
-        (520, 760),
-        (690, 910),
-        (830, 790),
-        (1080, 950),
-        (1080, 1350),
-        (0, 1350)
+        (0, 850),
+        (180, 790),
+        (330, 820),
+        (520, 690),
+        (690, 790),
+        (850, 735),
+        (1080, 820),
+        (1080, 1080),
+        (0, 1080)
     ]
 
     draw.polygon(
         mountain,
-        fill=(15, 25, 28)
+        fill=(20, 25, 29)
     )
 
-    # --------------------------------------------------------
-    # TEXT PANEL
-    # --------------------------------------------------------
+    font_path = find_telugu_font()
 
+    title_font = ImageFont.truetype(
+        font_path,
+        34
+    )
+
+    verse_font = ImageFont.truetype(
+        font_path,
+        52
+    )
+
+    reference_font = ImageFont.truetype(
+        font_path,
+        38
+    )
+
+    # Main card
     draw.rounded_rectangle(
-        [65, 180, 1015, 870],
-        radius=40,
-        fill=(10, 20, 25)
-    )
-
-    # --------------------------------------------------------
-    # HEADING
-    # --------------------------------------------------------
-
-    heading_font = get_font(
-        48,
-        bold=True
+        (65, 85, 1015, 720),
+        radius=35,
+        fill=(0, 0, 0),
+        outline=(230, 190, 80),
+        width=3
     )
 
     draw.text(
-        (540, 245),
+        (540, 145),
         "నేటి బైబిల్ వాక్యం",
-        font=heading_font,
-        anchor="mm",
-        fill=(240, 200, 100)
+        font=title_font,
+        fill=(245, 190, 75),
+        anchor="mm"
     )
 
-    # --------------------------------------------------------
-    # VERSE
-    # --------------------------------------------------------
+    # Wrap Telugu text
+    lines = []
+    current = ""
 
-    verse_font = get_font(54)
+    for word in text.split():
 
-    verse = verse_data["verse"]
+        test = (
+            f"{current} {word}"
+        ).strip()
 
-    lines = textwrap.wrap(
-        verse,
-        width=22
-    )
+        box = draw.textbbox(
+            (0, 0),
+            test,
+            font=verse_font
+        )
 
-    y = 390
+        if box[2] <= 850:
+            current = test
+
+        else:
+
+            if current:
+                lines.append(current)
+
+            current = word
+
+    if current:
+        lines.append(current)
+
+    lines = lines[:7]
+
+    y = 245
 
     for line in lines:
 
@@ -705,274 +337,321 @@ def create_bible_image(verse_data):
             (540, y),
             line,
             font=verse_font,
-            anchor="mm",
-            fill="white"
+            fill=(250, 250, 250),
+            anchor="mm"
         )
 
-        y += 82
+        y += 70
 
-    # --------------------------------------------------------
-    # REFERENCE
-    # --------------------------------------------------------
-
-    ref_font = get_font(
-        43,
-        bold=True
+    draw.text(
+        (540, 650),
+        reference,
+        font=reference_font,
+        fill=(245, 190, 75),
+        anchor="mm"
     )
 
     draw.text(
-        (540, 790),
-        verse_data["reference"],
-        font=ref_font,
-        anchor="mm",
-        fill=(245, 190, 90)
-    )
-
-    # --------------------------------------------------------
-    # BRANDING
-    # --------------------------------------------------------
-
-    brand_font = get_font(36)
-
-    draw.text(
-        (540, 1240),
-        "తెలుగు క్రైస్తవుల కోసం ❤️",
-        font=brand_font,
-        anchor="mm",
-        fill="white"
-    )
-
-    output = (
-        DATA_DIR /
-        "daily_bible_verse.jpg"
+        (540, 1010),
+        "Telugu Christians world",
+        font=title_font,
+        fill=(245, 245, 245),
+        anchor="mm"
     )
 
     image.save(
         output,
-        quality=95
+        "PNG"
     )
 
     return output
 
 
-# ============================================================
-# POST BIBLE VERSE
-# ============================================================
+# =========================================================
+# GENERATE BIBLE QUOTE
+# =========================================================
 
-def post_verse(history):
+def generate_quote(history):
 
-    data = generate_verse(
-        history
-    )
+    previous = [
+        item.get("text", "")
+        for item in history
+        if item.get("type") == "quote"
+    ][-20:]
 
-    image_path = create_bible_image(
-        data
-    )
+    prompt = f"""
+మీరు Telugu Christians world అనే తెలుగు క్రైస్తవ టెలిగ్రామ్
+ఛానల్ కోసం నాణ్యమైన రోజువారీ బైబిల్ కంటెంట్ తయారు చేస్తున్నారు.
 
-    caption = (
-        f"<b>📖 నేటి బైబిల్ వాక్యం</b>\n\n"
-        f"📍 <b>{data['reference']}</b>\n\n"
-        f"{data['short_message']}\n\n"
-        f"🙏 దేవుని వాక్యాన్ని ధ్యానిద్దాం."
-    )
+ఒక నిజమైన బైబిల్ వాక్యాన్ని ఎంచుకోండి.
 
-    send_photo(
-        image_path,
-        caption
-    )
+ముందు ఉపయోగించిన వాక్యాలు:
+{json.dumps(previous, ensure_ascii=False)}
 
-    history["verses"].append(
+వాక్యం పునరావృతం కాకూడదు.
+
+JSON మాత్రమే ఇవ్వండి:
+
+{{
+  "text": "తెలుగులో చిన్నదైన, అర్థవంతమైన బైబిల్ వాక్యం",
+  "reference": "గ్రంథం అధ్యాయం:వచనం",
+  "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే చిన్న ఆలోచన"
+}}
+
+నిబంధనలు:
+
+1. వాక్యం కల్పితం కాకూడదు.
+2. గ్రంథ సూచన వాక్యానికి సరిపోవాలి.
+3. సహజమైన తెలుగు ఉపయోగించండి.
+4. reflection ఉపయోగకరంగా ఉండాలి.
+5. చాలా చిన్న సమాచారం ఇవ్వకండి.
+"""
+
+    return gemini(prompt)
+
+
+# =========================================================
+# GENERATE BIBLE QUIZ
+# =========================================================
+
+def generate_quiz(history):
+
+    previous = [
+        item.get("question", "")
+        for item in history
+        if item.get("type") == "quiz"
+    ][-30:]
+
+    prompt = f"""
+Telugu Christians world కోసం ఒక మంచి తెలుగు Bible quiz తయారు చేయండి.
+
+ఇప్పటికే ఉపయోగించిన ప్రశ్నలు:
+
+{json.dumps(previous, ensure_ascii=False)}
+
+పాత ప్రశ్నలను పునరావృతం చేయకండి.
+
+నిబంధనలు:
+
+1. ప్రశ్న స్పష్టంగా ఉండాలి.
+2. 4 options ఉండాలి.
+3. ఒక్కటే సరైన సమాధానం ఉండాలి.
+4. నిజమైన బైబిల్ సమాచారంపై ఆధారపడాలి.
+5. options చిన్నగా ఉండాలి.
+6. సరైన answer_index 0,1,2,3 లో ఒకటి కావాలి.
+7. explanation ఉపయోగకరంగా ఉండాలి.
+8. reference తప్పనిసరిగా ఇవ్వాలి.
+
+JSON మాత్రమే:
+
+{{
+  "question": "తెలుగులో ప్రశ్న",
+  "options": [
+    "ఎంపిక 1",
+    "ఎంపిక 2",
+    "ఎంపిక 3",
+    "ఎంపిక 4"
+  ],
+  "answer_index": 0,
+  "explanation": "సరైన సమాధానం ఎందుకు సరైందో చిన్న వివరణ",
+  "reference": "గ్రంథం అధ్యాయం:వచనం"
+}}
+"""
+
+    return gemini(prompt)
+
+
+# =========================================================
+# POST QUOTE
+# =========================================================
+
+def post_quote(data):
+
+    image_path = make_quote_image(
+        data["text"],
         data["reference"]
     )
 
-    history["verses"] = (
-        history["verses"][-200:]
+    caption = (
+        "<b>📖 నేటి బైబిల్ వాక్యం</b>\n\n"
+        f"“{data['text']}”\n\n"
+        f"📍 <b>{data['reference']}</b>\n\n"
+        f"💭 {data['reflection']}\n\n"
+        "🙏 ఈ వాక్యాన్ని ఈరోజు గుర్తుంచుకోండి.\n\n"
+        "🔔 @Christians_world"
     )
 
-    save_history(
-        history
-    )
+    with open(
+        image_path,
+        "rb"
+    ) as photo:
 
-    print(
-        "Bible verse posted successfully."
-    )
-
-
-# ============================================================
-# POST BIBLE QUIZ
-# ============================================================
-
-def post_quiz(history):
-
-    data = generate_quiz(
-        history
-    )
-
-    validate_quiz(
-        data
-    )
-
-    explanation = (
-        f"📖 <b>బైబిల్ ఆధారం:</b> "
-        f"{data['reference']}\n\n"
-        f"💡 <b>వివరణ:</b> "
-        f"{data['explanation']}\n\n"
-        f"🙏 బైబిల్‌ను చదువుతూ మరింత తెలుసుకుందాం."
-    )
-
-    send_quiz(
-        data["question"],
-        data["options"],
-        data["correct_index"],
-        explanation
-    )
-
-    history["quizzes"].append(
-        data["question"]
-    )
-
-    history["quizzes"] = (
-        history["quizzes"][-200:]
-    )
-
-    save_history(
-        history
-    )
-
-    print(
-        "Bible quiz posted successfully."
-    )
-
-
-# ============================================================
-# POST BIBLE KNOWLEDGE QUIZ
-# ============================================================
-
-def post_knowledge(history):
-
-    data = generate_knowledge(
-        history
-    )
-
-    validate_quiz(
-        data
-    )
-
-    explanation = (
-        f"📖 <b>బైబిల్ ఆధారం:</b> "
-        f"{data['reference']}\n\n"
-        f"💡 <b>సమాధానం:</b> "
-        f"{data['explanation']}\n\n"
-        f"🙏 దేవుని వాక్యాన్ని మరింత తెలుసుకుందాం."
-    )
-
-    send_quiz(
-        data["question"],
-        data["options"],
-        data["correct_index"],
-        explanation
-    )
-
-    history["knowledge"].append(
-        data["question"]
-    )
-
-    history["knowledge"] = (
-        history["knowledge"][-200:]
-    )
-
-    save_history(
-        history
-    )
-
-    print(
-        "Bible knowledge quiz posted successfully."
-    )
-
-
-# ============================================================
-# QUIZ VALIDATION
-# ============================================================
-
-def validate_quiz(data):
-
-    if not isinstance(
-        data,
-        dict
-    ):
-
-        raise RuntimeError(
-            "Invalid quiz data."
+        url = (
+            f"https://api.telegram.org/"
+            f"bot{BOT_TOKEN}/sendPhoto"
         )
 
-    required = [
-        "question",
-        "options",
-        "correct_index",
-        "reference",
-        "explanation"
+        response = requests.post(
+            url,
+            data={
+                "chat_id": CHANNEL_ID,
+                "caption": caption,
+                "parse_mode": "HTML"
+            },
+            files={
+                "photo": photo
+            },
+            timeout=60
+        )
+
+    body = response.json()
+
+    if not body.get("ok"):
+
+        raise RuntimeError(
+            f"Telegram sendPhoto failed: {body}"
+        )
+
+
+# =========================================================
+# POST QUIZ
+# =========================================================
+
+def post_quiz(data):
+
+    options = [
+        str(option).strip()
+        for option in data["options"]
     ]
 
-    for key in required:
-
-        if key not in data:
-
-            raise RuntimeError(
-                f"Quiz missing field: {key}"
-            )
-
-    # --------------------------------------------------------
-    # QUESTION
-    # --------------------------------------------------------
-
-    if not isinstance(
-        data["question"],
-        str
-    ):
-
-        raise RuntimeError(
-            "Quiz question must be text."
-        )
-
-    if not data["question"].strip():
-
-        raise RuntimeError(
-            "Quiz question is empty."
-        )
-
-    # --------------------------------------------------------
-    # OPTIONS
-    # --------------------------------------------------------
-
-    options = data["options"]
-
-    if not isinstance(
-        options,
-        list
-    ):
-
-        raise RuntimeError(
-            "Quiz options must be a list."
-        )
-
     if len(options) != 4:
-
-        raise RuntimeError(
-            "Quiz must have exactly 4 options."
+        raise ValueError(
+            "Quiz must contain exactly 4 options."
         )
 
-    for option in options:
+    answer_index = int(
+        data["answer_index"]
+    )
 
-        if not isinstance(
-            option,
-            str
-        ):
+    if answer_index not in range(4):
 
-            raise RuntimeError(
-                "Each quiz option must be text."
-            )
+        raise ValueError(
+            "answer_index must be 0, 1, 2 or 3."
+        )
 
-        if not option.strip():
+    question = str(
+        data["question"]
+    ).strip()
 
-            raise RuntimeError(
-                "Quiz option cannot be empty."
+    explanation = (
+        f"{data['explanation']} "
+        f"📖 {data['reference']}"
+    )
+
+    explanation = explanation[:200]
+
+    telegram(
+        "sendPoll",
+        {
+            "chat_id": CHANNEL_ID,
+            "question": question,
+            "options": json.dumps(
+                options,
+                ensure_ascii=False
+            ),
+            "type": "quiz",
+            "is_anonymous": "true",
+            "correct_option_ids": json.dumps(
+                [answer_index]
+            ),
+            "explanation": explanation,
+            "allows_multiple_answers": "false",
+            "shuffle_options": "true"
+        }
+    )
+
+
+# =========================================================
+# MAIN
+# =========================================================
+
+def main():
+
+    history = load_history()
+
+    today = datetime.now(
+        timezone.utc
+    ).strftime("%Y-%m-%d")
+
+    post_type = os.environ.get(
+        "POST_TYPE",
+        "quiz"
+    ).lower()
+
+    print("===================================")
+    print("TELUGU BIBLE TELEGRAM BOT")
+    print("===================================")
+    print(f"Post type: {post_type}")
+
+    if post_type == "quote":
+
+        data = generate_quote(
+            history
+        )
+
+        post_quote(
+            data
+        )
+
+        history.append(
+            {
+                "date": today,
+                "type": "quote",
+                "text": data["text"],
+                "reference": data["reference"]
+            }
+        )
+
+        print(
+            "SUCCESS: Bible quote posted."
+        )
+
+    elif post_type == "quiz":
+
+        data = generate_quiz(
+            history
+        )
+
+        post_quiz(
+            data
+        )
+
+        history.append(
+            {
+                "date": today,
+                "type": "quiz",
+                "question": data["question"]
+            }
+        )
+
+        print(
+            "SUCCESS: Bible quiz posted."
+        )
+
+    else:
+
+        raise ValueError(
+            "POST_TYPE must be quote or quiz."
+        )
+
+    save_history(
+        history
+    )
+
+    print(
+        "Posting history saved."
+    )
+
+
+if __name__ == "__main__":
+    main()
