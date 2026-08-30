@@ -54,58 +54,49 @@ jobs:
               {
                   "title": "Learn Video Editing",
                   "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
-                  "content": """🔥 <b>EarnSmart India — Daily Opportunity</b>
-
-<b>Topic: Learn Video Editing</b>
-
-💡 <b>What is it?</b>
-Video editors turn raw footage into finished videos for YouTube, Instagram, ads, and business content.
-
-👥 <b>Who can start?</b>
-Anyone with interest in media. Beginners can start with free tools.
-
-🛠 <b>Skills required</b>
-• Video editing software (CapCut, DaVinci Resolve, Premiere Pro)
-• Storytelling
-• Audio editing
-• Captions & subtitles
-• Basic color correction
-
-🚀 <b>How to start</b>
-1. Install a free editor (CapCut or DaVinci Resolve).
-2. Practise using free stock footage.
-3. Create 5 sample videos (e.g., a 30-second reel).
-4. Build a showreel portfolio.
-5. Offer services to small businesses or creators.
-
-💼 <b>Where to find legitimate work</b>
-• <a href="https://www.fiverr.com">Fiverr</a>
-• <a href="https://www.upwork.com">Upwork</a>
-• LinkedIn Jobs
-
-💰 <b>Earning reality</b>
-Beginners often earn ₹5,000–₹15,000 per month depending on workload. Short-form editing (Reels/Shorts) is in high demand.
-
-⚠️ <b>Scam warning</b>
-Avoid fake “YouTube monetization” schemes. Never pay for guaranteed jobs or “editing certificates” from unknown sellers.
-
-📅 <b>7-day action plan</b>
-Day 1: Learn basics of chosen editor
-Day 2: Practise with free footage
-Day 3: Create 2 sample reels
-Day 4: Build a mini showreel
-Day 5: Apply for 2–3 small gigs
-Day 6: Network with creators
-Day 7: Review progress and improve
-
-🔗 <b>Useful resources</b>
-<a href="https://www.blackmagicdesign.com/products/davinciresolve">DaVinci Resolve Official</a>
-<a href="https://creatoracademy.youtube.com">YouTube Creator Academy</a>
-
-━━━━━━━━━━━━━━
-<b>EarnSmart India</b>
-Learn • Work • Earn Safely
-━━━━━━━━━━━━━━"""
+                  "content": (
+                      "🔥 <b>EarnSmart India — Daily Opportunity</b>\n\n"
+                      "<b>Topic: Learn Video Editing</b>\n\n"
+                      "💡 <b>What is it?</b>\n"
+                      "Video editors turn raw footage into finished videos for YouTube, Instagram, ads, and business content.\n\n"
+                      "👥 <b>Who can start?</b>\n"
+                      "Anyone with interest in media. Beginners can start with free tools.\n\n"
+                      "🛠 <b>Skills required</b>\n"
+                      "• Video editing software (CapCut, DaVinci Resolve, Premiere Pro)\n"
+                      "• Storytelling\n"
+                      "• Audio editing\n"
+                      "• Captions & subtitles\n"
+                      "• Basic color correction\n\n"
+                      "🚀 <b>How to start</b>\n"
+                      "1. Install a free editor (CapCut or DaVinci Resolve).\n"
+                      "2. Practise using free stock footage.\n"
+                      "3. Create 5 sample videos (e.g., a 30-second reel).\n"
+                      "4. Build a showreel portfolio.\n"
+                      "5. Offer services to small businesses or creators.\n\n"
+                      "💼 <b>Where to find legitimate work</b>\n"
+                      "• <a href=\"https://www.fiverr.com\">Fiverr</a>\n"
+                      "• <a href=\"https://www.upwork.com\">Upwork</a>\n"
+                      "• LinkedIn Jobs\n\n"
+                      "💰 <b>Earning reality</b>\n"
+                      "Beginners often earn ₹5,000–₹15,000 per month depending on workload. Short-form editing (Reels/Shorts) is in high demand.\n\n"
+                      "⚠️ <b>Scam warning</b>\n"
+                      "Avoid fake “YouTube monetization” schemes. Never pay for guaranteed jobs or “editing certificates” from unknown sellers.\n\n"
+                      "📅 <b>7-day action plan</b>\n"
+                      "Day 1: Learn basics of chosen editor\n"
+                      "Day 2: Practise with free footage\n"
+                      "Day 3: Create 2 sample reels\n"
+                      "Day 4: Build a mini showreel\n"
+                      "Day 5: Apply for 2–3 small gigs\n"
+                      "Day 6: Network with creators\n"
+                      "Day 7: Review progress and improve\n\n"
+                      "🔗 <b>Useful resources</b>\n"
+                      "<a href=\"https://www.blackmagicdesign.com/products/davinciresolve\">DaVinci Resolve Official</a>\n"
+                      "<a href=\"https://creatoracademy.youtube.com\">YouTube Creator Academy</a>\n\n"
+                      "━━━━━━━━━━━━━━\n"
+                      "<b>EarnSmart India</b>\n"
+                      "Learn • Work • Earn Safely\n"
+                      "━━━━━━━━━━━━━━"
+                  )
               }
           ]
 
