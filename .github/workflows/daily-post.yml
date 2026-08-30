@@ -6,32 +6,16 @@ name: EarnSmart India Daily Post
   schedule:
     - cron: "30 3 * * *"
 
-permissions:
-  contents: read
-
 jobs:
   post-to-telegram:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Generate and publish daily post
+      - name: Publish daily post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           python - <<'PY'
-          import os
-          import json
-          import html
-          import urllib.request
-          import urllib.parse
+          import os, json, html, urllib.request, urllib.parse
           from datetime import datetime, timezone, timedelta
 
           BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -429,4 +413,10 @@ jobs:
                   "intro": "Virtual assistants can help businesses with administration, research, communication and support.",
                   "image": "https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=85",
                   "details": """📋 <b>Job Description:</b>
-          Virtual assistants provide remote administrative, technical, or creative support to businesses and entrepreneurs. Tasks in
+          Virtual assistants provide remote administrative, technical, or creative support to businesses and entrepreneurs. Tasks include email management, scheduling, data entry, and customer support.
+
+          🛠️ <b>Required Skills:</b>
+          • Communication (written and verbal)
+          • Time management and organization
+          • Familiarity with tools (Google Workspace, Trello, Asana)
+          • Basic book
