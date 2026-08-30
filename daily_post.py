@@ -637,4 +637,6 @@ topics = [
 # Rotate topics based on calendar day.
 today = datetime.now(timezone.utc).date()
 
-day_number = toda
+day_number = today.toordinal() % len(topics)
+
+topic = topics[day_number]
