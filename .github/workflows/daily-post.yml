@@ -19,41 +19,36 @@ jobs:
       # ============================================================
       # CHECKOUT
       # ============================================================
-
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       # ============================================================
       # PYTHON
       # ============================================================
-
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       # ============================================================
-      # GENERATE AND PUBLISH
+      # GENERATE + PUBLISH
       # ============================================================
-
       - name: Generate and publish daily post
+        shell: bash
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-        shell: bash
+          # IMPORTANT:
+          # This is NOT a GitHub Secret.
+          # Put your Telegram channel username here.
+          TELEGRAM_CHAT_ID: "@LegitEarnIndia"
 
         run: |
-
           set -Eeuo pipefail
 
           echo "=================================================="
           echo "EarnSmart India Telegram Publisher"
           echo "=================================================="
-
-          # ----------------------------------------------------------
-          # CHECK SECRETS
-          # ----------------------------------------------------------
 
           if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
             echo "ERROR: TELEGRAM_BOT_TOKEN secret is missing."
@@ -61,18 +56,18 @@ jobs:
           fi
 
           if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "ERROR: TELEGRAM_CHAT_ID secret is missing."
+            echo "ERROR: Telegram channel username is missing."
             exit 1
           fi
 
-          echo "Telegram bot token: FOUND"
-          echo "Telegram chat ID: FOUND"
+          echo "Bot token: FOUND"
+          echo "Telegram target: ${TELEGRAM_CHAT_ID}"
 
-          # ----------------------------------------------------------
-          # CREATE PYTHON SCRIPT
-          # ----------------------------------------------------------
+          # ==========================================================
+          # PYTHON SCRIPT
+          # ==========================================================
 
-          cat > /tmp/earnsmart_telegram.py <<'PY'
+          cat > /tmp/daily_post.py <<'PY'
 
           import os
           import sys
@@ -81,12 +76,11 @@ jobs:
           import html
           import urllib.request
           import urllib.parse
-          import urllib.error
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
 
 
           # ==========================================================
-          # CONFIGURATION
+          # CONFIG
           # ==========================================================
 
           BOT_TOKEN = os.environ.get(
@@ -99,554 +93,511 @@ jobs:
               ""
           ).strip()
 
-          API_URL = (
-              f"https://api.telegram.org/bot{BOT_TOKEN}"
-          )
-
-          TELEGRAM_TIMEOUT = 60
-          DOWNLOAD_TIMEOUT = 60
-          RETRIES = 3
-
-          MAX_CAPTION_LENGTH = 1024
-
-
-          # ==========================================================
-          # VALIDATION
-          # ==========================================================
-
           if not BOT_TOKEN:
-              print("ERROR: TELEGRAM_BOT_TOKEN is empty.")
+              print("ERROR: TELEGRAM_BOT_TOKEN is missing.")
               sys.exit(1)
 
           if not CHAT_ID:
-              print("ERROR: TELEGRAM_CHAT_ID is empty.")
+              print("ERROR: TELEGRAM_CHAT_ID is missing.")
               sys.exit(1)
+
+          API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+          TIMEOUT = 60
 
 
           # ==========================================================
-          # TOPICS
+          # TOPIC LIBRARY
           # ==========================================================
 
           TOPICS = [
 
               {
-                  "title": "How to Start an Online Portfolio",
-                  "intro": (
-                      "An online portfolio helps clients understand "
-                      "your skills and see examples of your work."
-                  ),
-                  "areas": [
-                      "Writing",
-                      "Graphic design",
-                      "Video editing",
-                      "Web development",
-                      "Social media management",
-                  ],
-                  "steps": [
-                      "Choose one main skill.",
-                      "Create 3 to 5 strong samples.",
-                      "Use a simple portfolio page.",
-                      "Clearly explain each project.",
-                      "Add professional contact details.",
-                  ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1461749280684-dccba630e2f6"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
-              },
-
-              {
                   "title": "Start Freelancing With One Skill",
                   "intro": (
-                      "You do not need many skills to start. "
-                      "Choose one useful service and improve it."
+                      "You do not need dozens of skills to begin. "
+                      "Choose one useful service, practise it and "
+                      "build proof of your work."
                   ),
-                  "areas": [
-                      "Writing",
-                      "Design",
-                      "Video editing",
-                      "Web development",
-                      "Virtual assistance",
-                  ],
                   "steps": [
                       "Choose one service.",
-                      "Learn the basics.",
-                      "Create sample projects.",
-                      "Build a portfolio.",
-                      "Find legitimate clients.",
+                      "Learn the fundamentals.",
+                      "Create 3 sample projects.",
+                      "Build a simple portfolio.",
+                      "Find legitimate clients."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1553877522-43269d4ea984"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Learn WordPress Website Development",
                   "intro": (
-                      "WordPress skills can create opportunities "
-                      "for website development and maintenance."
+                      "WordPress skills can be used for website creation, "
+                      "maintenance, landing pages and freelance services."
                   ),
-                  "areas": [
-                      "WordPress",
-                      "Themes",
-                      "Plugins",
-                      "SEO",
-                      "Website maintenance",
-                  ],
                   "steps": [
                       "Learn the WordPress dashboard.",
-                      "Build a practice website.",
-                      "Learn themes and plugins.",
-                      "Learn basic security.",
-                      "Create portfolio projects.",
+                      "Practise themes and plugins.",
+                      "Build a test website.",
+                      "Learn basic SEO.",
+                      "Create portfolio projects."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1547658719-da2b51169166"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Learn Video Editing",
                   "intro": (
-                      "Video editing is a useful digital skill "
-                      "for creators, businesses and online work."
+                      "Video editing is a practical digital skill that "
+                      "can be used for YouTube, Reels, Shorts and business content."
                   ),
-                  "areas": [
-                      "Short videos",
-                      "YouTube videos",
-                      "Reels",
-                      "Captions",
-                      "Thumbnails",
-                  ],
                   "steps": [
                       "Choose one editing application.",
-                      "Practice every day.",
-                      "Create sample videos.",
-                      "Learn audio and captions.",
-                      "Build a portfolio.",
+                      "Learn basic cuts and transitions.",
+                      "Learn captions.",
+                      "Practise audio editing.",
+                      "Create portfolio samples."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1574717024653-61fd2cf4d44d"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Learn Digital Marketing",
                   "intro": (
-                      "Digital marketing is useful for businesses "
-                      "and can become a freelance skill."
+                      "Digital marketing includes SEO, social media, "
+                      "content marketing and analytics."
                   ),
-                  "areas": [
-                      "SEO",
-                      "Social media",
-                      "Content marketing",
-                      "Email marketing",
-                      "Analytics",
-                  ],
                   "steps": [
-                      "Learn the fundamentals.",
-                      "Practice on a small project.",
-                      "Measure your results.",
-                      "Create case studies.",
-                      "Build a professional portfolio.",
+                      "Learn basic SEO.",
+                      "Understand social media marketing.",
+                      "Practise content creation.",
+                      "Learn basic analytics.",
+                      "Build small case studies."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1460925895917-afdab827c52f"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Avoid Online Job Scams",
                   "intro": (
-                      "Fake jobs often promise guaranteed income "
-                      "and ask applicants to pay money."
+                      "Fake job offers often promise easy money and then "
+                      "ask applicants for deposits, fees or sensitive information."
                   ),
-                  "areas": [
-                      "Fake recruitment fees",
-                      "Deposit requests",
-                      "Fake training",
-                      "OTP scams",
-                      "Identity theft",
-                  ],
                   "steps": [
                       "Research the company.",
                       "Check its official website.",
+                      "Verify the vacancy.",
                       "Never pay for a guaranteed job.",
-                      "Never share OTPs.",
-                      "Avoid unrealistic income promises.",
+                      "Never share OTPs or passwords."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1563013544-824ae1b704d3"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Learn Excel for Better Opportunities",
                   "intro": (
-                      "Excel is useful for office work, "
-                      "business, finance and data-related jobs."
+                      "Excel is useful for administration, finance, "
+                      "operations, sales and data-related jobs."
                   ),
-                  "areas": [
-                      "Formulas",
-                      "Charts",
-                      "Filtering",
-                      "Pivot tables",
-                      "Data cleaning",
-                  ],
                   "steps": [
-                      "Learn basic formulas.",
-                      "Practice with datasets.",
+                      "Learn formulas.",
+                      "Learn sorting and filtering.",
                       "Learn lookup functions.",
-                      "Create simple dashboards.",
-                      "Add projects to your portfolio.",
+                      "Create charts.",
+                      "Practise pivot tables."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1551288049-bebda4e38f71"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
-              },
-
-              {
-                  "title": "Start Content Creation",
-                  "intro": (
-                      "Useful and consistent content can help "
-                      "build an audience over time."
-                  ),
-                  "areas": [
-                      "Educational videos",
-                      "Tutorials",
-                      "Reviews",
-                      "Blogs",
-                      "Short videos",
-                  ],
-                  "steps": [
-                      "Choose a clear topic.",
-                      "Create useful content.",
-                      "Verify information.",
-                      "Publish consistently.",
-                      "Study audience feedback.",
-                  ],
-                  "image": (
-                      "https://images.unsplash.com/"
-                      "photo-1492724441997-5dc865305da7"
-                      "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
                   "title": "Build a Professional CV",
                   "intro": (
-                      "A good CV should quickly show your "
-                      "skills, projects and relevant experience."
+                      "A clear CV should quickly show your relevant "
+                      "skills, projects, experience and achievements."
                   ),
-                  "areas": [
-                      "Skills",
-                      "Experience",
-                      "Projects",
-                      "Achievements",
-                      "Education",
-                  ],
                   "steps": [
-                      "Keep the design clean.",
+                      "Use a clean layout.",
                       "Highlight relevant skills.",
+                      "Add useful projects.",
                       "Show measurable achievements.",
-                      "Remove unnecessary information.",
-                      "Proofread before applying.",
+                      "Proofread before applying."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
                       "photo-1586281380349-632531db7ed4"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
 
               {
-                  "title": "Build Multiple Income Skills",
+                  "title": "Build Useful AI Skills",
                   "intro": (
-                      "Developing useful skills can create "
-                      "more sustainable earning opportunities."
+                      "AI tools can improve productivity in writing, "
+                      "research, coding and repetitive tasks."
                   ),
-                  "areas": [
-                      "Freelancing",
-                      "Web development",
-                      "Content creation",
-                      "Digital services",
-                      "Remote work",
-                  ],
                   "steps": [
-                      "Choose one skill.",
-                      "Practice consistently.",
-                      "Create proof of your ability.",
-                      "Find legitimate opportunities.",
-                      "Add complementary skills later.",
+                      "Learn one AI tool.",
+                      "Use it for repetitive work.",
+                      "Verify important information.",
+                      "Protect confidential information.",
+                      "Measure the time saved."
                   ],
                   "image": (
                       "https://images.unsplash.com/"
-                      "photo-1523240795612-9a054b0db644"
+                      "photo-1677442136019-21780ecad995"
                       "?auto=format&fit=crop&w=1200&q=85"
-                  ),
+                  )
               },
+
+              {
+                  "title": "Learn Basic Coding",
+                  "intro": (
+                      "Basic coding can open opportunities in websites, "
+                      "automation, software and technical freelancing."
+                  ),
+                  "steps": [
+                      "Choose one language.",
+                      "Practise regularly.",
+                      "Build small projects.",
+                      "Publish your work.",
+                      "Solve real problems."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1515879218367-8466d910aaa4"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Create Digital Products",
+                  "intro": (
+                      "Templates, checklists, guides and spreadsheets "
+                      "can solve specific problems for customers."
+                  ),
+                  "steps": [
+                      "Find a genuine problem.",
+                      "Create a useful solution.",
+                      "Test the product.",
+                      "Improve using feedback.",
+                      "Use legitimate sales channels."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1554224155-6726b3ff858f"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Improve Your Online Job Search",
+                  "intro": (
+                      "A targeted job search is better than applying "
+                      "randomly to every vacancy."
+                  ),
+                  "steps": [
+                      "Choose suitable roles.",
+                      "Customize your CV.",
+                      "Prepare an introduction.",
+                      "Research the employer.",
+                      "Track your applications."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1521791136064-7986c2920216"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Start Virtual Assistance",
+                  "intro": (
+                      "Virtual assistants can help businesses with "
+                      "administration, research, communication and support."
+                  ),
+                  "steps": [
+                      "Learn productivity tools.",
+                      "Improve organization.",
+                      "Create a service list.",
+                      "Build sample work.",
+                      "Apply through legitimate channels."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1497215842964-222b430dc094"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Learn Social Media Management",
+                  "intro": (
+                      "Businesses need help planning, creating and "
+                      "organizing useful social media content."
+                  ),
+                  "steps": [
+                      "Learn major platforms.",
+                      "Create sample content calendars.",
+                      "Learn basic analytics.",
+                      "Build portfolio examples.",
+                      "Approach suitable businesses."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1611162617474-5b21e879e113"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              },
+
+              {
+                  "title": "Create a Simple Online Business",
+                  "intro": (
+                      "Before investing heavily, test whether people "
+                      "actually need your product or service."
+                  ),
+                  "steps": [
+                      "Identify a real problem.",
+                      "Define your customer.",
+                      "Create a small test offer.",
+                      "Measure demand.",
+                      "Improve before scaling."
+                  ],
+                  "image": (
+                      "https://images.unsplash.com/"
+                      "photo-1454165804606-c3d57bc86b40"
+                      "?auto=format&fit=crop&w=1200&q=85"
+                  )
+              }
 
           ]
 
 
           # ==========================================================
-          # HELPERS
+          # HTML ESCAPE
           # ==========================================================
 
-          def escape_text(value):
+          def esc(value):
               return html.escape(
                   str(value),
                   quote=False
               )
 
 
-          def telegram_call(method, data=None):
-              """
-              Call Telegram API using POST.
-              """
+          # ==========================================================
+          # CAPTION
+          # ==========================================================
 
-              if data is None:
-                  data = {}
+          def make_caption(topic):
+
+              india_now = (
+                  datetime.now(timezone.utc)
+                  + timedelta(hours=5, minutes=30)
+              )
+
+              date_text = india_now.strftime(
+                  "%d %B %Y"
+              )
+
+              message = (
+                  "💰 <b>EarnSmart India</b>\n\n"
+                  f"📌 <b>{esc(topic['title'])}</b>\n\n"
+                  f"{esc(topic['intro'])}\n\n"
+                  "🚀 <b>How to start:</b>\n\n"
+              )
+
+              for i, step in enumerate(
+                  topic["steps"],
+                  1
+              ):
+                  message += (
+                      f"{i}. {esc(step)}\n"
+                  )
+
+              message += (
+                  "\n⚠️ <b>Scam Warning</b>\n\n"
+                  "Avoid guaranteed-income promises. "
+                  "Never pay money for a guaranteed job and "
+                  "never share OTPs, passwords or sensitive information.\n\n"
+                  "💡 <b>Remember:</b>\n"
+                  "Real online income normally requires useful skills, "
+                  "consistent effort and patience.\n\n"
+                  f"📅 {date_text}\n\n"
+                  "📢 Follow <b>EarnSmart India</b> for practical "
+                  "online earning tips.\n\n"
+                  "#EarnSmartIndia "
+                  "#OnlineEarning "
+                  "#FreelancingIndia "
+                  "#DigitalSkills"
+              )
+
+              if len(message) > 1024:
+                  message = (
+                      message[:1020]
+                      + "..."
+                  )
+
+              return message
+
+
+          # ==========================================================
+          # TELEGRAM REQUEST
+          # ==========================================================
+
+          def telegram_request(
+              method,
+              data
+          ):
+
+              url = (
+                  f"{API}/{method}"
+              )
 
               encoded = urllib.parse.urlencode(
                   data
               ).encode("utf-8")
 
               request = urllib.request.Request(
-                  f"{API_URL}/{method}",
+                  url,
                   data=encoded,
                   method="POST",
                   headers={
                       "Content-Type":
                           "application/x-www-form-urlencoded",
                       "User-Agent":
-                          "EarnSmartIndia/2.0",
-                  },
-              )
-
-              try:
-
-                  with urllib.request.urlopen(
-                      request,
-                      timeout=TELEGRAM_TIMEOUT,
-                  ) as response:
-
-                      raw = response.read().decode(
-                          "utf-8"
-                      )
-
-                      result = json.loads(raw)
-
-                      return result
-
-              except urllib.error.HTTPError as error:
-
-                  raw = error.read().decode(
-                      "utf-8",
-                      errors="replace"
-                  )
-
-                  print(
-                      "Telegram HTTP ERROR:"
-                  )
-
-                  print(raw)
-
-                  raise
-
-              except Exception as error:
-
-                  print(
-                      f"Telegram connection error: {error}"
-                  )
-
-                  raise
-
-
-          # ==========================================================
-          # VERIFY BOT
-          # ==========================================================
-
-          def verify_bot():
-
-              print()
-              print("Checking Telegram bot...")
-
-              result = telegram_call(
-                  "getMe"
-              )
-
-              print(
-                  json.dumps(
-                      result,
-                      ensure_ascii=False,
-                      indent=2
-                  )
-              )
-
-              if not result.get("ok"):
-
-                  description = result.get(
-                      "description",
-                      "Unknown Telegram error"
-                  )
-
-                  raise RuntimeError(
-                      "Telegram bot verification failed: "
-                      + description
-                  )
-
-              bot = result.get(
-                  "result",
-                  {}
-              )
-
-              username = bot.get(
-                  "username",
-                  "unknown"
-              )
-
-              print(
-                  f"Bot verified: @{username}"
-              )
-
-
-          # ==========================================================
-          # VERIFY CHAT
-          # ==========================================================
-
-          def verify_chat():
-
-              print()
-              print(
-                  "Checking Telegram chat/channel..."
-              )
-
-              result = telegram_call(
-                  "getChat",
-                  {
-                      "chat_id": CHAT_ID
+                          "EarnSmartIndia/1.0"
                   }
               )
 
-              print(
-                  json.dumps(
-                      result,
-                      ensure_ascii=False,
-                      indent=2
+              with urllib.request.urlopen(
+                  request,
+                  timeout=TIMEOUT
+              ) as response:
+
+                  return json.loads(
+                      response.read().decode(
+                          "utf-8"
+                      )
                   )
+
+
+          # ==========================================================
+          # DOWNLOAD IMAGE
+          # ==========================================================
+
+          def get_image(url):
+
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "User-Agent":
+                          "Mozilla/5.0"
+                  }
               )
 
-              if not result.get("ok"):
+              with urllib.request.urlopen(
+                  request,
+                  timeout=TIMEOUT
+              ) as response:
 
-                  description = result.get(
-                      "description",
-                      "Unknown Telegram error"
-                  )
+                  data = response.read()
 
+              if not data:
                   raise RuntimeError(
-                      "Telegram chat verification failed: "
-                      + description
+                      "Image is empty."
                   )
 
-              chat = result.get(
-                  "result",
-                  {}
-              )
-
-              chat_type = chat.get(
-                  "type",
-                  "unknown"
-              )
-
-              chat_title = chat.get(
-                  "title",
-                  ""
-              )
-
-              username = chat.get(
-                  "username",
-                  ""
-              )
-
-              print(
-                  f"Chat type : {chat_type}"
-              )
-
-              if chat_title:
-                  print(
-                      f"Chat title: {chat_title}"
-                  )
-
-              if username:
-                  print(
-                      f"Username  : @{username}"
-                  )
-
-              print(
-                  "Telegram chat verification: OK"
-              )
+              return data
 
 
           # ==========================================================
-          # BUILD POST
+          # SEND PHOTO
           # ==========================================================
 
-          def build_caption(topic, date_text):
+          def send_photo(
+              image_data,
+              caption
+          ):
 
-              title = escape_text(
-                  topic["title"]
+              boundary = (
+                  "----EarnSmart"
+                  + str(int(time.time()))
               )
 
-              intro = escape_text(
-                  topic["intro"]
-              )
+              body = bytearray()
 
-              areas = "\n".join(
-                  "• " + escape_text(item)
-                  for item in topic["areas"]
-              )
 
-              steps = "\n".join(
-                  f"{i}. {escape_text(item)}"
-                  for i, item in enumerate(
-                      topic["steps"],
-                      start=1
+              def field(
+                  name,
+                  value
+              ):
+
+                  body.extend(
+                      (
+                          f"--{boundary}\r\n"
+                          f'Content-Disposition: '
+                          f'form-data; name="{name}"'
+                          f"\r\n\r\n"
+                      ).encode()
                   )
+
+                  body.extend(
+                      str(value).encode(
+                          "utf-8"
+                      )
+                  )
+
+                  body.extend(
+                      b"\r\n"
+                  )
+
+
+              field(
+                  "chat_id",
+                  CHAT_ID
               )
 
-              caption = (
-                  "💰 <b>EarnSmart India</b>\n\n"
+              field(
+                  "caption",
+                  caption
+              )
 
-                  f"💰 <b>{title}</b>\n\n"
+              field(
+                  "parse_mode",
+                  "HTML"
+              )
 
-                  f"{intro}\n\n"
-
-                  "🔹 <b>Useful areas</b>\n\n"
-
-                  f"{areas}\n\n"
-
-                  "🚀 <b>How to start</b>\n\n"
-
-                  f"{steps}\n\n"
-
-                  "🔷 <b>Important tips</b>\n\n"
-
-                  "Keep learning, build real skills, "
-                  "and focus on legitimate opportunities.\n\n"
-
-                  "⚠️ <b>Scam warning</b>\n\n"
+              body.extend(
+                  (
+                      f"--{boundary}\r\n"
+                      'Content-Disposition: '
+                      'form-data; '
+                      'name="photo"; '
+                      'filename="earnsmart.jpg"\r\n'
+                      "Content-Type: image/jpeg\r\n\r\n"
+                  ).encode()
+              )
 
