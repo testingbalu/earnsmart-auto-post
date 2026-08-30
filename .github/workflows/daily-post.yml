@@ -14,29 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate and publish daily post
+      - name: Publish daily post via Bash and curl
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           set -Eeuo pipefail
 
-          # ============================================
-          # CONFIG
-          # ============================================
           BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
           CHAT_ID="@LegitEarnIndia"
           API="https://api.telegram.org/bot${BOT_TOKEN}"
 
-          # ============================================
-          # DAILY TOPICS (simplified for Bash)
-          # Each entry: title|intro|image_url|job_description|skills|improve|sources|links
-          # We'll store them as separate arrays for clarity, or use a single array with delimiter.
-          # For simplicity, we'll just pick one fixed topic for testing, then expand later.
-          # But to keep it functional, we'll define arrays for titles, intros, images, etc.
-
-          # Define topics (you can add all 19; I'll include a few examples)
-          # Format: one string per field, separated by '|'
-          # We'll use parallel arrays.
+          # ------------------------------------------------------------
+          # TOPICS DATA (aligned arrays)
+          # ------------------------------------------------------------
 
           titles=(
             "Start Freelancing With One Skill"
@@ -104,11 +94,62 @@ jobs:
             "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85"
           )
 
-          # For simplicity, we'll use a single string for the full details per topic.
-          # We'll define them in a separate array using '|' as delimiter between fields.
+          # Full details for each topic (job description, skills, improve, sources, links)
           details=(
             "📋 <b>Job Description:</b> A freelancer offers a specific service to clients on a project basis.\n🛠️ <b>Required Skills:</b> Core skill, Communication, Time management.\n📈 <b>How to Improve:</b> Take courses, practice daily, join communities.\n💼 <b>Job Sources:</b> Upwork, Fiverr, Freelancer.\n🔗 <b>Links:</b> upwork.com, fiverr.com"
             "📋 <b>Job Description:</b> WordPress developers build and maintain websites.\n🛠️ <b>Required Skills:</b> WordPress, HTML/CSS, PHP basics.\n📈 <b>How to Improve:</b> Official tutorials, build demo sites.\n💼 <b>Job Sources:</b> Upwork, PeoplePerHour.\n🔗 <b>Links:</b> wordpress.org, wpbeginner.com"
             "📋 <b>Job Description:</b> Video editors create polished videos for social media, YouTube, ads.\n🛠️ <b>Required Skills:</b> Premiere Pro/DaVinci, storytelling, audio editing.\n📈 <b>How to Improve:</b> Practice with stock footage, follow tutorials.\n💼 <b>Job Sources:</b> Fiverr, Upwork.\n🔗 <b>Links:</b> adobe.com, blackmagicdesign.com"
             "📋 <b>Job Description:</b> Digital marketers promote products online via SEO, social media, ads.\n🛠️ <b>Required Skills:</b> SEO, content creation, analytics.\n📈 <b>How to Improve:</b> Google Digital Garage, create blog.\n💼 <b>Job Sources:</b> LinkedIn, Indeed, Naukri.\n🔗 <b>Links:</b> learndigital.withgoogle.com, analytics.google.com"
-            "📋 <b>Job Description:</b> Guidance to avoid fake job offers and scams.\n🛠️ <b>Required Skills:</b> Awareness, verification.\n📈 <b>How to Improve:</b> Read advisories, verify employers
+            "📋 <b>Job Description:</b> Guidance to avoid fake job offers and scams.\n🛠️ <b>Required Skills:</b> Awareness, verification.\n📈 <b>How to Improve:</b> Read advisories, verify employers.\n💼 <b>Job Sources:</b> Official websites, NCS.\n🔗 <b>Links:</b> ncs.gov.in, consumer.ftc.gov"
+            "📋 <b>Job Description:</b> Excel skills for data entry, analysis, reporting.\n🛠️ <b>Required Skills:</b> Formulas, pivot tables, charts.\n📈 <b>How to Improve:</b> Kaggle datasets, Microsoft Learn.\n💼 <b>Job Sources:</b> Naukri, Indeed, LinkedIn.\n🔗 <b>Links:</b> support.microsoft.com/excel, kaggle.com"
+            "📋 <b>Job Description:</b> A well-crafted CV increases interview chances.\n🛠️ <b>Required Skills:</b> Clear writing, ATS knowledge.\n📈 <b>How to Improve:</b> Use templates, tailor each application.\n💼 <b>Job Sources:</b> All job portals.\n🔗 <b>Links:</b> canva.com/resumes, zety.com"
+            "📋 <b>Job Description:</b> AI tools boost productivity in writing, research, coding.\n🛠️ <b>Required Skills:</b> Prompt engineering, critical thinking.\n📈 <b>How to Improve:</b> Experiment with ChatGPT, learn prompts.\n💼 <b>Job Sources:</b> Remote boards, freelance platforms.\n🔗 <b>Links:</b> openai.com/chatgpt, gemini.google.com"
+            "📋 <b>Job Description:</b> Coding skills for web dev, automation, software.\n🛠️ <b>Required Skills:</b> One language, problem-solving.\n📈 <b>How to Improve:</b> freeCodeCamp, build projects.\n💼 <b>Job Sources:</b> GitHub Jobs, Stack Overflow, LinkedIn.\n🔗 <b>Links:</b> freecodecamp.org, github.com"
+            "📋 <b>Job Description:</b> Design and sell digital products like templates, eBooks.\n🛠️ <b>Required Skills:</b> Product design, marketing.\n📈 <b>How to Improve:</b> Find niche problem, MVP.\n💼 <b>Job Sources:</b> Gumroad, Etsy, Creative Market.\n🔗 <b>Links:</b> gumroad.com, etsy.com"
+            "📋 <b>Job Description:</b> Effective job search strategy and networking.\n🛠️ <b>Required Skills:</b> Networking, research.\n📈 <b>How to Improve:</b> Job alerts, LinkedIn connections.\n💼 <b>Job Sources:</b> LinkedIn, Indeed, Naukri.\n🔗 <b>Links:</b> linkedin.com/jobs, indeed.co.in"
+            "📋 <b>Job Description:</b> Virtual assistants provide remote admin support.\n🛠️ <b>Required Skills:</b> Communication, time management.\n📈 <b>How to Improve:</b> Online courses, offer free services.\n💼 <b>Job Sources:</b> Upwork, Fiverr, Belay.\n🔗 <b>Links:</b> upwork.com, fiverr.com"
+            "📋 <b>Job Description:</b> Social media managers grow brand presence.\n🛠️ <b>Required Skills:</b> Content creation, analytics.\n📈 <b>How to Improve:</b> Manage local page, HubSpot Academy.\n💼 <b>Job Sources:</b> LinkedIn, Indeed, Upwork.\n🔗 <b>Links:</b> academy.hubspot.com, buffer.com"
+            "📋 <b>Job Description:</b> Start an online business solving a problem.\n🛠️ <b>Required Skills:</b> Market research, basic finance.\n📈 <b>How to Improve:</b> Google Trends, lean startup.\n💼 <b>Job Sources:</b> Shopify, WooCommerce.\n🔗 <b>Links:</b> trends.google.com, shopify.com"
+            "📋 <b>Job Description:</b> Communication skills for any professional role.\n🛠️ <b>Required Skills:</b> Active listening, clear writing.\n📈 <b>How to Improve:</b> Coursera, Toastmasters.\n💼 <b>Job Sources:</b> All roles.\n🔗 <b>Links:</b> coursera.org/learn/communication, toastmasters.org"
+            "📋 <b>Job Description:</b> Customer support via chat, email, phone.\n🛠️ <b>Required Skills:</b> Patience, CRM tools.\n📈 <b>How to Improve:</b> Free courses, Zendesk trial.\n💼 <b>Job Sources:</b> We Work Remotely, Remote.co.\n🔗 <b>Links:</b> zendesk.com, weworkremotely.com"
+            "📋 <b>Job Description:</b> Data analysts interpret data for business decisions.\n🛠️ <b>Required Skills:</b> Excel, SQL, visualization.\n📈 <b>How to Improve:</b> Kaggle, Google Data Analytics Cert.\n💼 <b>Job Sources:</b> LinkedIn, Indeed, Naukri.\n🔗 <b>Links:</b> coursera.org/google-data-analytics, kaggle.com"
+            "📋 <b>Job Description:</b> SEO specialists optimize websites for search.\n🛠️ <b>Required Skills:</b> Keyword research, on-page SEO.\n📈 <b>How to Improve:</b> Google SEO guide, Search Console.\n💼 <b>Job Sources:</b> Upwork, LinkedIn, Remote boards.\n🔗 <b>Links:</b> developers.google.com/search, moz.com"
+            "📋 <b>Job Description:</b> Diversify income streams with multiple skills.\n🛠️ <b>Required Skills:</b> Growth mindset, time management.\n📈 <b>How to Improve:</b> Set goals, online communities.\n💼 <b>Job Sources:</b> Freelance platforms, remote jobs.\n🔗 <b>Links:</b> coursera.org, udemy.com"
+          )
+
+          # ------------------------------------------------------------
+          # SELECT DAILY TOPIC
+          # ------------------------------------------------------------
+          DAY_OF_YEAR=$(date +%j)
+          INDEX=$((10#$DAY_OF_YEAR % ${#titles[@]}))   # 10# to avoid octal interpretation
+          TITLE="${titles[$INDEX]}"
+          INTRO="${intros[$INDEX]}"
+          IMAGE_URL="${images[$INDEX]}"
+          DETAILS="${details[$INDEX]}"
+
+          # Build short caption for photo
+          CAPTION="💰 <b>EarnSmart India</b>%0A%0A📅 $(date +"%d %B %Y")%0A%0A🔥 <b>${TITLE}</b>%0A%0A${INTRO}%0A%0A🚀 <b>How to Start:</b>%0A1. Learn basics%0A2. Practice%0A3. Build portfolio%0A%0A⚠️ <b>Scam Warning:</b> Never pay for guaranteed jobs.%0A%0A📢 Follow @LegitEarnIndia for daily tips.%0A#EarnSmartIndia #OnlineEarning #DigitalSkills"
+
+          # ------------------------------------------------------------
+          # SEND PHOTO (using URL)
+          # ------------------------------------------------------------
+          echo "Sending photo..."
+          RESPONSE=$(curl -s -X POST "${API}/sendPhoto" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "photo=${IMAGE_URL}" \
+            --data-urlencode "caption=${CAPTION}" \
+            --data-urlencode "parse_mode=HTML")
+          echo "Photo response: ${RESPONSE}"
+
+          # ------------------------------------------------------------
+          # SEND DETAILS MESSAGE
+          # ------------------------------------------------------------
+          echo "Sending details..."
+          RESPONSE2=$(curl -s -X POST "${API}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=${DETAILS}" \
+            --data-urlencode "parse_mode=HTML" \
+            --data-urlencode "disable_web_page_preview=true")
+          echo "Details response: ${RESPONSE2}"
+
+          echo "Done."
