@@ -51,10 +51,63 @@ jobs:
                   sys.exit(1)
 
           topics = [
-              {"title": "Start Freelancing With One Skill", "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85", "content": "🔥 <b>EarnSmart India — Daily Opportunity</b>\n\n<b>Topic: Start Freelancing With One Skill</b>\n\n💡 <b>What is it?</b>\nFreelancing means offering one skill as a service.\n\n👤 <b>Who can start?</b>\nBeginners with one marketable skill.\n\n🛠 <b>Skills required</b>\n• Communication\n• Time management\n• Proposal writing\n\n🚀 <b>How to start</b>\n1. Pick one skill\n2. Practise daily\n3. Build 3 sample projects\n4. Create a portfolio\n5. Apply only for relevant jobs\n\n💼 <b>Where to find legitimate work</b>\n• <a href=\"https://www.upwork.com\">Upwork</a>\n• <a href=\"https://www.fiverr.com\">Fiverr</a>\n• <a href=\"https://www.freelancer.com\">Freelancer</a>\n\n💰 <b>Earning reality</b>\nIncome varies by skill, experience, and workload.\n\n⚠️ <b>Scam warning</b>\nNever pay deposits to unlock jobs.\n\n📅 <b>7-day action plan</b>\nDay 1: Practise\nDay 2: Build sample\nDay 3: Portfolio\nDay 4: Apply\nDay 5: Improve\nDay 6: Network\nDay 7: Review progress\n\n━━━━━━━━━━━━━━\n<b>EarnSmart India</b>\nLearn • Work • Earn Safely\n━━━━━━━━━━━━━━"},
-              {"title": "Learn WordPress Website Development", "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85", "content": "🔥 <b>EarnSmart India — Daily Opportunity</b>\n\n<b>Topic: Learn WordPress Website Development</b>\n\n💡 <b>What is it?</b>\nWordPress developers build and maintain websites.\n\n👤 <b>Who can start?</b>\nAnyone with basic computer skills.\n\n🛠 <b>Skills required</b>\n• WordPress admin\n• HTML/CSS basics\n• Basic PHP\n• SEO fundamentals\n\n🚀 <b>How to start</b>\n1. Learn WordPress fundamentals\n2. Create 2–3 practice sites\n3. Learn one page builder\n4. Build a portfolio\n\n💼 <b>Where to find legitimate work</b>\n• <a href=\"https://www.upwork.com\">Upwork</a>\n• <a href=\"https://www.fiverr.com\">Fiverr</a>\n• <a href=\"https://www.codeable.io\">Codeable</a>\n\n💰 <b>Earning reality</b>\nBeginners start with small fixes, income grows with experience.\n\n⚠️ <b>Scam warning</b>\nAvoid fake “premium plugin” sellers.\n\n📅 <b>7-day action plan</b>\nDay 1: Learn basics\nDay 2: Practise\nDay 3: Build demo site\nDay 4: Learn SEO\nDay 5: Portfolio\nDay 6: Apply\nDay 7: Review progress\n\n━━━━━━━━━━━━━━\n<b>EarnSmart India</b>\nLearn • Work • Earn Safely\n━━━━━━━━━━━━━━"},
-              {"title": "Learn Video Editing", "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85", "content": "🔥 <b>EarnSmart India — Daily Opportunity</b>\n\n<b>Topic: Learn Video Editing</b>\n\n💡 <b>What is it?</b>\nVideo editors turn raw footage into finished videos.\n\n👤 <b>Who can start?</b>\nAnyone with interest in media.\n\n🛠 <b>Skills required</b>\n• Video editing software\n• Storytelling\n• Audio editing\n• Captions\n\n🚀 <b>How to start</b>\n1. Learn CapCut or DaVinci Resolve\n2. Practise with free footage\n3. Create 5 sample videos\n4. Build a showreel\n5. Offer services to creators\n\n💼 <b>Where to find legitimate work</b>\n• <a href=\"https://www.fiverr.com\">Fiverr</a>\n• <a href=\"https://www.upwork.com\">Upwork</a>\n• LinkedIn\n\n💰 <b>Earning reality</b>\nShort-form editing is in demand.\n\n⚠️ <b>Scam warning</b>\nAvoid fake “YouTube monetization” schemes.\n\n📅 <b>7-day action plan</b>\nDay 1: Learn basics\nDay 2: Practise\nDay 3: Create samples\nDay 4: Build showreel\nDay 5: Apply\nDay 6: Network\nDay 7: Review progress\n\n━━━━━━━━━━━━━━\n<b>EarnSmart India</b>\nLearn • Work • Earn Safely\n━━━━━━━━━━━━━━"},
-              # ... continue adding all 20 topics (Digital Marketing, Excel, CV, AI Productivity, Virtual Assistance, Coding, Digital Products, YouTube, Content Writing, Tutoring, Translation, Customer Support, Government Jobs, Scam Awareness, etc.)
+              {
+                  "title": "Learn Video Editing",
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
+                  "content": """🔥 <b>EarnSmart India — Daily Opportunity</b>
+
+<b>Topic: Learn Video Editing</b>
+
+💡 <b>What is it?</b>
+Video editors turn raw footage into finished videos for YouTube, Instagram, ads, and business content.
+
+👥 <b>Who can start?</b>
+Anyone with interest in media. Beginners can start with free tools.
+
+🛠 <b>Skills required</b>
+• Video editing software (CapCut, DaVinci Resolve, Premiere Pro)
+• Storytelling
+• Audio editing
+• Captions & subtitles
+• Basic color correction
+
+🚀 <b>How to start</b>
+1. Install a free editor (CapCut or DaVinci Resolve).
+2. Practise using free stock footage.
+3. Create 5 sample videos (e.g., a 30-second reel).
+4. Build a showreel portfolio.
+5. Offer services to small businesses or creators.
+
+💼 <b>Where to find legitimate work</b>
+• <a href="https://www.fiverr.com">Fiverr</a>
+• <a href="https://www.upwork.com">Upwork</a>
+• LinkedIn Jobs
+
+💰 <b>Earning reality</b>
+Beginners often earn ₹5,000–₹15,000 per month depending on workload. Short-form editing (Reels/Shorts) is in high demand.
+
+⚠️ <b>Scam warning</b>
+Avoid fake “YouTube monetization” schemes. Never pay for guaranteed jobs or “editing certificates” from unknown sellers.
+
+📅 <b>7-day action plan</b>
+Day 1: Learn basics of chosen editor
+Day 2: Practise with free footage
+Day 3: Create 2 sample reels
+Day 4: Build a mini showreel
+Day 5: Apply for 2–3 small gigs
+Day 6: Network with creators
+Day 7: Review progress and improve
+
+🔗 <b>Useful resources</b>
+<a href="https://www.blackmagicdesign.com/products/davinciresolve">DaVinci Resolve Official</a>
+<a href="https://creatoracademy.youtube.com">YouTube Creator Academy</a>
+
+━━━━━━━━━━━━━━
+<b>EarnSmart India</b>
+Learn • Work • Earn Safely
+━━━━━━━━━━━━━━"""
+              }
+              # Add other topics here with similar improvements (Freelancing, WordPress, Digital Marketing, Excel, CV, AI, Virtual Assistance, Coding, Digital Products, etc.)
           ]
 
           index = datetime.now().timetuple().tm_yday % len(topics)
