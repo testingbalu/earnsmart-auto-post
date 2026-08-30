@@ -1,5 +1,4 @@
 name: EarnSmart India Daily Post
-
 on:
   workflow_dispatch:
 
