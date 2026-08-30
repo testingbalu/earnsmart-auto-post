@@ -1153,7 +1153,7 @@ def post_quote(data):
 
         "<b>📖 నేటి బైబిల్ వాక్యం</b>\n\n"
 
-        f""{data['text']}"\n\n"
+        f"\"{data['text']}\"\n\n"
 
         f"📍 <b>{data['reference']}</b>\n\n"
 
