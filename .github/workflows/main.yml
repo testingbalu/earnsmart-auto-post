@@ -100,8 +100,58 @@ Day 7: Review progress
 <b>EarnSmart India</b>
 Learn • Work • Earn Safely
 ━━━━━━━━━━━━━━"""
+              },
+              {
+                  "title": "Learn WordPress Website Development",
+                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85",
+                  "content": """🔥 <b>EarnSmart India — Daily Opportunity</b>
+
+<b>Topic: Learn WordPress Website Development</b>
+
+💡 <b>What is it?</b>
+WordPress developers build and maintain websites.
+
+👤 <b>Who can start?</b>
+Anyone with basic computer skills.
+
+🛠 <b>Skills required</b>
+• WordPress admin
+• HTML/CSS basics
+• Basic PHP
+• SEO fundamentals
+
+🚀 <b>How to start</b>
+1. Learn WordPress fundamentals
+2. Create 2–3 practice sites
+3. Learn one page builder
+4. Build a portfolio
+
+💼 <b>Where to find legitimate work</b>
+• <a href="https://www.upwork.com">Upwork</a>
+• <a href="https://www.fiverr.com">Fiverr</a>
+• <a href="https://www.codeable.io">Codeable</a>
+
+💰 <b>Earning reality</b>
+Beginners start with small fixes, income grows with experience.
+
+⚠️ <b>Scam warning</b>
+Avoid fake “premium plugin” sellers.
+
+📅 <b>7-day action plan</b>
+Day 1: Learn basics
+Day 2: Practise
+Day 3: Build demo site
+Day 4: Learn SEO
+Day 5: Portfolio
+Day 6: Apply
+Day 7: Review progress
+
+━━━━━━━━━━━━━━
+<b>EarnSmart India</b>
+Learn • Work • Earn Safely
+━━━━━━━━━━━━━━"""
               }
-              # Add more topics here...
+              # Add remaining topics here (Video Editing, Digital Marketing, Excel, CV, AI, Virtual Assistance, Coding, Digital Products, etc.)
           ]
 
           index = datetime.now().timetuple().tm_yday % len(topics)
