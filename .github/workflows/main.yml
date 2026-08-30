@@ -107,7 +107,7 @@ Day 7: Review progress and improve
 Learn • Work • Earn Safely
 ━━━━━━━━━━━━━━"""
               }
-              # Add other topics here with similar improvements (Freelancing, WordPress, Digital Marketing, Excel, CV, AI, Virtual Assistance, Coding, Digital Products, etc.)
+              # Add other topics here...
           ]
 
           index = datetime.now().timetuple().tm_yday % len(topics)
