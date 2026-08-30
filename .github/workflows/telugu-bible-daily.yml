@@ -1,0 +1,75 @@
+name: Telugu Bible Daily
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # 9:00 AM IST
+    - cron: "30 3 * * *"
+
+    # 2:00 PM IST
+    - cron: "30 8 * * *"
+
+    # 8:00 PM IST
+    - cron: "30 14 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  bible-post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Telugu fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-core fonts-noto-extra
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests Pillow
+
+      - name: Determine post type
+        id: post
+        run: |
+          HOUR=$(TZ=Asia/Kolkata date +%H)
+
+          if [ "$HOUR" -ge 8 ] && [ "$HOUR" -lt 12 ]; then
+            echo "type=verse" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" -ge 12 ] && [ "$HOUR" -lt 17 ]; then
+            echo "type=quiz" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=knowledge" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "IST hour: $HOUR"
+
+      - name: Run Bible bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          BIBLE_CHANNEL_ID: ${{ secrets.BIBLE_CHANNEL_ID }}
+          POST_TYPE: ${{ steps.post.outputs.type }}
+        run: |
+          python bible_bot.py
+
+      - name: Save posting history
+        run: |
+          git config user.name "Bible Bot"
+          git config user.email "bible-bot@users.noreply.github.com"
+
+          git add data/
+
+          git diff --cached --quiet || git commit -m "Update Bible posting history"
+
+          git push || true
