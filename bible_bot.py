@@ -1153,8 +1153,221 @@ def post_quote(data):
 
         "<b>📖 నేటి బైబిల్ వాక్యం</b>\n\n"
 
-        f"“{data['text']}”\n\n"
+        f""{data['text']}"\n\n"
 
         f"📍 <b>{data['reference']}</b>\n\n"
 
-        f"💭 {data['r
+        f"💭 {data['reflection']}"
+    )
+
+
+    url = (
+        "https://api.telegram.org/bot"
+        f"{BOT_TOKEN}/sendPhoto"
+    )
+
+
+    with open(image_path, "rb") as image_file:
+
+        files = {
+            "photo": image_file
+        }
+
+        data_payload = {
+            "chat_id": CHANNEL_ID,
+            "caption": caption,
+            "parse_mode": "HTML"
+        }
+
+        response = requests.post(
+            url,
+            files=files,
+            data=data_payload,
+            timeout=30
+        )
+
+
+    if not response.ok:
+
+        raise RuntimeError(
+            f"Telegram sendPhoto failed: "
+            f"HTTP {response.status_code}: "
+            f"{response.text[:500]}"
+        )
+
+
+    return response.json()
+
+
+# =========================================================
+# POST QUIZ
+# =========================================================
+
+def post_quiz(data):
+
+    text = (
+
+        "<b>📚 నేటి బైబిల్ కవిజ్</b>\n\n"
+
+        f"<b>{data['question']}</b>\n\n"
+
+    )
+
+    for i, option in enumerate(data["options"]):
+        text += f"{chr(65 + i)}. {option}\n"
+
+    url = (
+        "https://api.telegram.org/bot"
+        f"{BOT_TOKEN}/sendMessage"
+    )
+
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        timeout=30
+    )
+
+    if not response.ok:
+
+        raise RuntimeError(
+            f"Telegram sendMessage failed: "
+            f"HTTP {response.status_code}: "
+            f"{response.text[:500]}"
+        )
+
+    return response.json()
+
+
+# =========================================================
+# POST KNOWLEDGE
+# =========================================================
+
+def post_knowledge(data):
+
+    text = (
+
+        "<b>💡 నేటి బైబిల్ జ్ఞానం</b>\n\n"
+
+        f"<b>{data['title']}</b>\n\n"
+
+        f"{data['content']}\n\n"
+
+        f"<i>📖 {data['reference']}</i>"
+    )
+
+    url = (
+        "https://api.telegram.org/bot"
+        f"{BOT_TOKEN}/sendMessage"
+    )
+
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        timeout=30
+    )
+
+    if not response.ok:
+
+        raise RuntimeError(
+            f"Telegram sendMessage failed: "
+            f"HTTP {response.status_code}: "
+            f"{response.text[:500]}"
+        )
+
+    return response.json()
+
+
+# =========================================================
+# MAIN
+# =========================================================
+
+def main():
+
+    history = load_history()
+
+    post_type = os.environ.get(
+        "POST_TYPE",
+        "quote"
+    ).lower()
+
+    try:
+
+        if post_type == "quote":
+
+            data = generate_quote(history)
+
+            post_quote(data)
+
+            history.append({
+                "type": "quote",
+                "text": data.get("text"),
+                "reference": data.get("reference"),
+                "reflection": data.get("reflection"),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+        elif post_type == "quiz":
+
+            data = generate_quiz(history)
+
+            post_quiz(data)
+
+            history.append({
+                "type": "quiz",
+                "question": data.get("question"),
+                "options": data.get("options"),
+                "answer_index": data.get("answer_index"),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+        elif post_type == "knowledge":
+
+            data = generate_knowledge(history)
+
+            post_knowledge(data)
+
+            history.append({
+                "type": "knowledge",
+                "title": data.get("title"),
+                "content": data.get("content"),
+                "reference": data.get("reference"),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+        else:
+
+            raise ValueError(
+                f"Unknown POST_TYPE: {post_type}"
+            )
+
+
+        save_history(history)
+
+        print(
+            f"✅ SUCCESS: {post_type} posted!"
+        )
+
+
+    except Exception as error:
+
+        print(
+            f"❌ ERROR: {str(error)}"
+        )
+
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
