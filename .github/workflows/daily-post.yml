@@ -14,112 +14,419 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Publish daily post via Bash and curl
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate and publish daily post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          set -Eeuo pipefail
+          python - <<'PY'
+          import os
+          import json
+          import html
+          import urllib.request
+          import urllib.parse
+          from datetime import datetime, timezone, timedelta
 
-          BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
-          CHAT_ID="@LegitEarnIndia"
-          API="https://api.telegram.org/bot${BOT_TOKEN}"
+          BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+          CHAT_ID = "@LegitEarnIndia"
+          API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-          # ------------------------------------------------------------
-          # TOPICS DATA (aligned arrays)
-          # ------------------------------------------------------------
+          # ---------- TOPICS DATA (rich content) ----------
+          topics = [
+              {
+                  "title": "Start Freelancing With One Skill",
+                  "intro": "You do not need dozens of skills to begin. Choose one useful service, practise it and build proof of your work.",
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          A freelancer offers a specific service to clients on a project basis. You can work from home, set your own rates, and choose projects that match your skills. Common freelance services include writing, graphic design, web development, and virtual assistance.
 
-          titles=(
-            "Start Freelancing With One Skill"
-            "Learn WordPress Website Development"
-            "Learn Video Editing"
-            "Learn Digital Marketing"
-            "Avoid Online Job Scams"
-            "Learn Excel for Better Opportunities"
-            "Build a Professional CV"
-            "Use AI Tools to Improve Productivity"
-            "Learn Basic Coding"
-            "Create Digital Products"
-            "Improve Your Online Job Search"
-            "Start Virtual Assistance"
-            "Learn Social Media Management"
-            "Create a Simple Online Business"
-            "Improve Your Communication Skills"
-            "Learn Customer Support Skills"
-            "Learn Data Analysis Basics"
-            "Learn SEO"
-            "Build Multiple Legitimate Income Skills"
-          )
+          🛠️ <b>Required Skills:</b>
+          • Core skill (writing, design, coding, etc.)
+          • Communication and client handling
+          • Time management
+          • Basic proposal writing
+          • Ability to deliver quality work on deadline
 
-          intros=(
-            "You do not need dozens of skills to begin. Choose one useful service, practise it and build proof of your work."
-            "WordPress skills can be used for website creation, maintenance, landing pages and freelance services."
-            "Video editing is a practical digital skill that can be used for YouTube, Reels, Shorts and business content."
-            "Digital marketing includes SEO, social media, content marketing and analytics."
-            "Fake job offers often promise easy money and then ask applicants for deposits, fees or sensitive information."
-            "Excel is useful for administration, finance, operations, sales and data-related jobs."
-            "A clear CV should quickly show your relevant skills, projects, experience and achievements."
-            "AI tools can improve productivity in writing, research, coding and repetitive tasks."
-            "Basic coding can open opportunities in websites, automation, software and technical freelancing."
-            "Templates, checklists, guides and spreadsheets can solve specific problems for customers."
-            "A targeted job search is better than applying randomly to every vacancy."
-            "Virtual assistants can help businesses with administration, research, communication and support."
-            "Businesses need help planning, creating and organizing useful social media content."
-            "Before investing heavily, test whether people actually need your product or service."
-            "Clear communication is valuable in almost every online job and freelance service."
-            "Customer support is an accessible career area for people with communication and problem-solving skills."
-            "Basic data skills are useful in business, operations, marketing and many office roles."
-            "Search engine optimization helps websites become more discoverable through useful and relevant content."
-            "A stronger long-term strategy is to build useful skills instead of searching for instant-money schemes."
-          )
+          📈 <b>How to Improve Skills:</b>
+          1. Take free/paid courses on Coursera, Udemy, or YouTube
+          2. Practice daily and create a portfolio
+          3. Join freelancing communities (e.g., Reddit r/freelance, Facebook groups)
+          4. Start with small projects to build reputation
+          5. Learn to write effective proposals
 
-          images=(
-            "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1200&q=85"
-            "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85"
-          )
+          💼 <b>Legitimate Job Sources:</b>
+          • Upwork – upwork.com
+          • Fiverr – fiverr.com
+          • Freelancer.com – freelancer.com
+          • LinkedIn – linkedin.com/jobs
 
-          # ------------------------------------------------------------
-          # FULL DETAILS (double-quoted, \n for newlines, internal double quotes escaped as \")
-          # ------------------------------------------------------------
-          details=(
-            "📋 <b>Job Description:</b>\nA freelancer offers a specific service to clients on a project basis. You can work from home, set your own rates, and choose projects that match your skills. Common freelance services include writing, graphic design, web development, and virtual assistance.\n\n🛠️ <b>Required Skills:</b>\n• Core skill (writing, design, coding, etc.)\n• Communication and client handling\n• Time management\n• Basic proposal writing\n• Ability to deliver quality work on deadline\n\n📈 <b>How to Improve Skills:</b>\n1. Take free/paid courses on Coursera, Udemy, or YouTube\n2. Practice daily and create a portfolio\n3. Join freelancing communities (e.g., Reddit r/freelance, Facebook groups)\n4. Start with small projects to build reputation\n5. Learn to write effective proposals\n\n💼 <b>Legitimate Job Sources:</b>\n• Upwork – upwork.com\n• Fiverr – fiverr.com\n• Freelancer.com – freelancer.com\n• LinkedIn – linkedin.com/jobs\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr, Freelancer, PeoplePerHour\n\n🔗 <b>Genuine Links:</b>\n• https://www.upwork.com\n• https://www.fiverr.com\n• https://www.freelancer.com\n• https://www.peopleperhour.com"
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr, Freelancer, PeoplePerHour
 
-            "📋 <b>Job Description:</b>\nWordPress developers build, customize, and maintain websites using the WordPress CMS. They may work freelance, for agencies, or as part of a company’s web team. Tasks include theme customization, plugin setup, site optimization, and troubleshooting.\n\n🛠️ <b>Required Skills:</b>\n• WordPress administration\n• HTML & CSS basics\n• PHP (basic understanding)\n• SEO fundamentals\n• Knowledge of page builders (Elementor, Divi)\n\n📈 <b>How to Improve Skills:</b>\n1. Use official WordPress tutorials (wordpress.org/learn)\n2. Build 2-3 demo websites\n3. Learn about popular plugins (WooCommerce, Yoast SEO)\n4. Understand web hosting and domain setup\n5. Practice on local installations (Local by Flywheel)\n\n💼 <b>Legitimate Job Sources:</b>\n• Upwork – upwork.com\n• PeoplePerHour – peopleperhour.com\n• Local business websites\n• LinkedIn – linkedin.com/jobs\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr, Codeable (for WordPress experts)\n\n🔗 <b>Genuine Links:</b>\n• https://wordpress.org/learn/\n• https://www.wpbeginner.com\n• https://www.codeable.io\n• https://www.upwork.com"
+          🔗 <b>Genuine Links:</b>
+          • https://www.upwork.com
+          • https://www.fiverr.com
+          • https://www.freelancer.com
+          • https://www.peopleperhour.com"""
+              },
+              {
+                  "title": "Learn WordPress Website Development",
+                  "intro": "WordPress skills can be used for website creation, maintenance, landing pages and freelance services.",
+                  "image": "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          WordPress developers build, customize, and maintain websites using the WordPress CMS. They may work freelance, for agencies, or as part of a company’s web team. Tasks include theme customization, plugin setup, site optimization, and troubleshooting.
 
-            "📋 <b>Job Description:</b>\nVideo editors transform raw footage into polished videos for social media, YouTube, advertisements, or films. They handle cutting, transitions, audio, color correction, and sometimes motion graphics.\n\n🛠️ <b>Required Skills:</b>\n• Proficiency in editing software (Adobe Premiere Pro, DaVinci Resolve, Final Cut Pro)\n• Storytelling and pacing\n• Audio editing and mixing\n• Color correction and grading\n• Basic motion graphics (After Effects)\n\n📈 <b>How to Improve Skills:</b>\n1. Practice with free stock footage (Pexels, Pixabay)\n2. Follow YouTube tutorials (e.g., Adobe in a Minute)\n3. Learn to use DaVinci Resolve (free version)\n4. Build a showreel with 2-3 sample edits\n5. Study successful YouTube channels for editing styles\n\n💼 <b>Legitimate Job Sources:</b>\n• Fiverr – fiverr.com\n• Upwork – upwork.com\n• Production companies (local)\n• LinkedIn – linkedin.com/jobs\n\n💰 <b>Earning Sites:</b>\n• Fiverr, Upwork, Motion Array (sell templates)\n\n🔗 <b>Genuine Links:</b>\n• https://www.adobe.com/products/premiere.html\n• https://www.blackmagicdesign.com/products/davinciresolve\n• https://www.fiverr.com\n• https://motionarray.com"
+          🛠️ <b>Required Skills:</b>
+          • WordPress administration
+          • HTML & CSS basics
+          • PHP (basic understanding)
+          • SEO fundamentals
+          • Knowledge of page builders (Elementor, Divi)
 
-            "📋 <b>Job Description:</b>\nDigital marketers promote products or services online through SEO, social media, email marketing, and paid ads. They analyze data to optimize campaigns and increase brand visibility.\n\n🛠️ <b>Required Skills:</b>\n• SEO (on-page, off-page)\n• Content creation (blogs, social posts)\n• Social media management\n• Google Analytics and data interpretation\n• Basic knowledge of Google Ads and Facebook Ads\n\n📈 <b>How to Improve Skills:</b>\n1. Take Google’s free Digital Marketing course (Digital Garage)\n2. Create a blog or social media page to practice\n3. Learn Google Ads and Facebook Blueprint\n4. Use Google Analytics to track a personal project\n5. Stay updated with marketing blogs (HubSpot, Moz)\n\n💼 <b>Legitimate Job Sources:</b>\n• LinkedIn – linkedin.com/jobs\n• Indeed – indeed.co.in\n• Naukri.com – naukri.com\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr, Freelancer (digital marketing gigs)\n\n🔗 <b>Genuine Links:</b>\n• https://learndigital.withgoogle.com/digitalgarage\n• https://analytics.google.com\n• https://academy.hubspot.com\n• https://www.linkedin.com/jobs"
+          📈 <b>How to Improve Skills:</b>
+          1. Use official WordPress tutorials (wordpress.org/learn)
+          2. Build 2-3 demo websites
+          3. Learn about popular plugins (WooCommerce, Yoast SEO)
+          4. Understand web hosting and domain setup
+          5. Practice on local installations (Local by Flywheel)
 
-            "📋 <b>Job Description:</b>\nThis topic helps you identify and avoid fraudulent online job offers, such as fake data entry jobs, pyramid schemes, and “pay for guaranteed work” scams. It provides guidelines for safe job hunting.\n\n🛠️ <b>Required Skills:</b>\n• Awareness of common scam patterns\n• Ability to verify company legitimacy\n• Safe online practices\n• Critical thinking\n• Knowledge of official job portals\n\n📈 <b>How to Improve Skills:</b>\n1. Read government advisories on job scams (NCS, FTC)\n2. Always verify company details on official websites\n3. Never share OTPs, passwords, or pay deposits\n4. Check reviews on sites like Glassdoor\n5. Use only reputable job boards\n\n💼 <b>Legitimate Job Sources:</b>\n• Government job portal – ncs.gov.in\n• Official company career pages\n• Reputed job boards (LinkedIn, Indeed)\n\n💰 <b>Earning Sites:</b>\n• No site can guarantee a job; beware of any site that asks for payment.\n\n🔗 <b>Genuine Links:</b>\n• https://www.ncs.gov.in\n• https://www.consumer.ftc.gov/articles/job-scams\n• https://www.glassdoor.com\n• https://www.linkedin.com/help/linkedin/answer/a1342507"
+          💼 <b>Legitimate Job Sources:</b>
+          • Upwork – upwork.com
+          • PeoplePerHour – peopleperhour.com
+          • Local business websites
+          • LinkedIn – linkedin.com/jobs
 
-            "📋 <b>Job Description:</b>\nExcel skills are essential for data entry, analysis, reporting, and many administrative roles. Proficiency in Excel can lead to jobs in finance, operations, sales, and data analytics.\n\n🛠️ <b>Required Skills:</b>\n• Formulas (VLOOKUP, IF, SUMIF, INDEX-MATCH)\n• Pivot tables and charts\n• Data cleaning and sorting\n• Conditional formatting\n• Basic macros (optional)\n\n📈 <b>How to Improve Skills:</b>\n1. Practice with real datasets from Kaggle\n2. Take free courses on Microsoft Learn or YouTube (ExcelIsFun)\n3. Build a dashboard project (e.g., sales analysis)\n4. Learn keyboard shortcuts for efficiency\n5. Explore advanced functions (Power Query)\n\n💼 <b>Legitimate Job Sources:</b>\n• Naukri.com – naukri.com\n• Indeed – indeed.co.in\n• LinkedIn – linkedin.com/jobs\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr (data entry/Excel gigs)\n\n🔗 <b>Genuine Links:</b>\n• https://support.microsoft.com/en-us/excel\n• https://www.kaggle.com/datasets\n• https://www.linkedin.com/learning/topics/excel\n• https://www.upwork.com"
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr, Codeable (for WordPress experts)
 
-            "📋 <b>Job Description:</b>\nA well-crafted CV is your first impression to employers. It should highlight your relevant skills, projects, experience, and achievements in a clear, ATS-friendly format.\n\n🛠️ <b>Required Skills:</b>\n• Clear and concise writing\n• Understanding of Applicant Tracking Systems (ATS)\n• Attention to detail\n• Ability to quantify achievements\n• Design sensibility (using templates)\n\n📈 <b>How to Improve Skills:</b>\n1. Use free CV templates from Canva or Google Docs\n2. Tailor your CV for each job application\n3. Ask for feedback from professionals or mentors\n4. Include measurable results (e.g., \"Increased sales by 20%\")\n5. Keep it to 1-2 pages\n\n💼 <b>Legitimate Job Sources:</b>\n• All job portals (LinkedIn, Indeed, Naukri)\n• Company career pages\n\n💰 <b>Earning Sites:</b>\n• Not applicable; a good CV helps you get jobs on any platform.\n\n🔗 <b>Genuine Links:</b>\n• https://www.canva.com/resumes/templates/\n• https://zety.com/blog/ats-resume\n• https://www.linkedin.com/help/linkedin/answer/a507453"
+          🔗 <b>Genuine Links:</b>
+          • https://wordpress.org/learn/
+          • https://www.wpbeginner.com
+          • https://www.codeable.io
+          • https://www.upwork.com"""
+              },
+              {
+                  "title": "Learn Video Editing",
+                  "intro": "Video editing is a practical digital skill that can be used for YouTube, Reels, Shorts and business content.",
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Video editors transform raw footage into polished videos for social media, YouTube, advertisements, or films. They handle cutting, transitions, audio, color correction, and sometimes motion graphics.
 
-            "📋 <b>Job Description:</b>\nAI tools like ChatGPT, Gemini, and others can boost productivity in writing, research, coding, and repetitive tasks. Knowing how to use them effectively is a valuable skill in many jobs.\n\n🛠️ <b>Required Skills:</b>\n• Prompt engineering (writing clear instructions)\n• Critical thinking to verify AI outputs\n• Understanding of AI capabilities and limitations\n• Basic data privacy awareness\n• Ability to integrate AI into workflows\n\n📈 <b>How to Improve Skills:</b>\n1. Experiment with free versions of ChatGPT, Gemini, or Claude\n2. Learn to write effective prompts (Coursera course)\n3. Use AI for personal projects (e.g., summarizing, coding help)\n4. Stay updated on AI news and ethics\n5. Practice verifying AI-generated information\n\n💼 <b>Legitimate Job Sources:</b>\n• Remote job boards (We Work Remotely, Remote.co)\n• Freelance platforms (Upwork, Fiverr)\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr (AI-related gigs)\n\n🔗 <b>Genuine Links:</b>\n• https://openai.com/chatgpt\n• https://gemini.google.com\n• https://www.coursera.org/learn/prompt-engineering\n• https://weworkremotely.com"
+          🛠️ <b>Required Skills:</b>
+          • Proficiency in editing software (Adobe Premiere Pro, DaVinci Resolve, Final Cut Pro)
+          • Storytelling and pacing
+          • Audio editing and mixing
+          • Color correction and grading
+          • Basic motion graphics (After Effects)
 
-            "📋 <b>Job Description:</b>\nBasic coding skills open doors in web development, automation, data analysis, and software engineering. Even non‑technical roles value employees who can write simple scripts or understand code.\n\n🛠️ <b>Required Skills:</b>\n• One programming language (Python, JavaScript, etc.)\n• Problem-solving and logical thinking\n• Basic algorithms and data structures\n• Version control (Git)\n• Ability to debug and read documentation\n\n📈 <b>How to Improve Skills:</b>\n1. Use free resources like freeCodeCamp or Codecademy\n2. Build a personal project (e.g., a to‑do app or website)\n3. Contribute to open-source projects on GitHub\n4. Practice on coding challenge sites (LeetCode, HackerRank)\n5. Join coding communities (Stack Overflow, Reddit r/learnprogramming)\n\n💼 <b>Legitimate Job Sources:</b>\n• GitHub Jobs – github.com/jobs\n• Stack Overflow Jobs – stackoverflow.com/jobs\n• LinkedIn – linkedin.com/jobs\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr, Toptal (for experienced devs)\n\n🔗 <b>Genuine Links:</b>\n• https://www.freecodecamp.org\n• https://www.codecademy.com\n• https://github.com\n• https://www.toptal.com"
+          📈 <b>How to Improve Skills:</b>
+          1. Practice with free stock footage (Pexels, Pixabay)
+          2. Follow YouTube tutorials (e.g., Adobe in a Minute)
+          3. Learn to use DaVinci Resolve (free version)
+          4. Build a showreel with 2-3 sample edits
+          5. Study successful YouTube channels for editing styles
 
-            "📋 <b>Job Description:</b>\nDigital product creators design and sell downloadable goods like eBooks, templates, courses, and software tools. This can generate passive income after initial effort.\n\n🛠️ <b>Required Skills:</b>\n• Product design and creation\n• Marketing and sales copy\n• Customer feedback analysis\n• Basic understanding of e‑commerce platforms\n• Ability to identify niche problems\n\n📈 <b>How to Improve Skills:</b>\n1. Identify a niche problem you can solve\n2. Create a simple MVP (minimum viable product)\n3. Sell on platforms like Gumroad, Etsy, or Creative Market\n4. Gather feedback and improve\n5. Learn from successful digital product creators (YouTube, blogs)\n\n💼 <b>Legitimate Job Sources:</b>\n• Gumroad – gumroad.com\n• Etsy – etsy.com\n• Creative Market – creativemarket.com\n\n💰 <b>Earning Sites:</b>\n• Gumroad, Etsy, Shopify (for your own store)\n\n🔗 <b>Genuine Links:</b>\n• https://gumroad.com\n• https://www.etsy.com\n• https://creativemarket.com\n• https://www.shopify.com"
+          💼 <b>Legitimate Job Sources:</b>
+          • Fiverr – fiverr.com
+          • Upwork – upwork.com
+          • Production companies (local)
+          • LinkedIn – linkedin.com/jobs
 
-            "📋 <b>Job Description:</b>\nEffective job searching involves strategy, networking, and tailoring applications to increase your chances. It’s more than just applying randomly.\n\n🛠️ <b>Required Skills:</b>\n• Networking (online and offline)\n• Research skills\n• Interview preparation\n• Customizing CV and cover letter\n• Tracking applications\n\n📈 <b>How to Improve Skills:</b>\n1. Set up job alerts on multiple platforms\n2. Use LinkedIn to connect with recruiters and industry professionals\n3. Practice mock interviews with friends or online tools\n4. Customize your CV for each application\n5. Keep a spreadsheet of applications and follow‑ups\n\n💼 <b>Legitimate Job Sources:</b>\n• LinkedIn – linkedin.com/jobs\n• Indeed – indeed.co.in\n• Naukri.com – naukri.com\n\n💰 <b>Earning Sites:</b>\n• Not a direct earning site; helps you find jobs on legitimate platforms.\n\n🔗 <b>Genuine Links:</b>\n• https://www.linkedin.com/jobs\n• https://www.indeed.co.in\n• https://www.naukri.com"
+          💰 <b>Earning Sites:</b>
+          • Fiverr, Upwork, Motion Array (sell templates)
 
-            "📋 <b>Job Description:</b>\nVirtual assistants provide remote administrative, technical, or creative support to businesses and entrepreneurs. Tasks include email management, scheduling, data entry, and customer support.\n\n🛠️ <b>Required Skills:</b>\n• Communication (written and verbal)\n• Time management and organization\n• Familiarity with tools (Google Workspace, Trello, Asana)\n• Basic bookkeeping or social media management (optional)\n• Reliability and confidentiality\n\n📈 <b>How to Improve Skills:</b>\n1. Take online courses on virtual assistance (Udemy, Coursera)\n2. Offer free services to a few clients for testimonials\n3. Join VA communities (Facebook groups, forums)\n4. Learn popular productivity tools\n5. Create a service list and portfolio\n\n💼 <b>Legitimate Job Sources:</b>\n• Upwork – upwork.com\n• Fiverr – fiverr.com\n• Belay – belaysolutions.com\n• Time Etc – timeetc.com\n\n💰 <b>Earning Sites:</b>\n• Upwork, Fiverr, Belay, Time Etc\n\n🔗 <b>Genuine Links:</b>\n• https://www.upwork.com\n• https://www.fiverr.com\n• https://belaysolutions.com\n• https://www.timeetc.com"
+          🔗 <b>Genuine Links:</b>
+          • https://www.adobe.com/products/premiere.html
+          • https://www.blackmagicdesign.com/products/davinciresolve
+          • https://www.fiverr.com
+          • https://motionarray.com"""
+              },
+              {
+                  "title": "Learn Digital Marketing",
+                  "intro": "Digital marketing includes SEO, social media, content marketing and analytics.",
+                  "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Digital marketers promote products or services online through SEO, social media, email marketing, and paid ads. They analyze data to optimize campaigns and increase brand visibility.
 
-            "📋 <b>Job Description:</b>\nSocial media managers create, schedule, and analyze content across platforms to grow a brand’s online presence. They may handle multiple accounts and engage with followers.\n\n🛠️ <b>Required Skills:</b>\n• Content creation (graphics, captions, videos)\n• Platform knowledge (Instagram, Facebook, LinkedIn, Twitter)\n• Analytics (Facebook Insights, Instagram Insights)\n• Scheduling tools (Buffer, Hootsuite)\n• Community management\n\n📈 <b>How to Improve Skills:</b>\n1. Manage a page for a local business or NGO for free\n2. Take courses on HubSpot Academy (free)\n3. Learn to use scheduling tools like Buffer\n4. Study successful 
+          🛠️ <b>Required Skills:</b>
+          • SEO (on-page, off-page)
+          • Content creation (blogs, social posts)
+          • Social media management
+          • Google Analytics and data interpretation
+          • Basic knowledge of Google Ads and Facebook Ads
+
+          📈 <b>How to Improve Skills:</b>
+          1. Take Google’s free Digital Marketing course (Digital Garage)
+          2. Create a blog or social media page to practice
+          3. Learn Google Ads and Facebook Blueprint
+          4. Use Google Analytics to track a personal project
+          5. Stay updated with marketing blogs (HubSpot, Moz)
+
+          💼 <b>Legitimate Job Sources:</b>
+          • LinkedIn – linkedin.com/jobs
+          • Indeed – indeed.co.in
+          • Naukri.com – naukri.com
+
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr, Freelancer (digital marketing gigs)
+
+          🔗 <b>Genuine Links:</b>
+          • https://learndigital.withgoogle.com/digitalgarage
+          • https://analytics.google.com
+          • https://academy.hubspot.com
+          • https://www.linkedin.com/jobs"""
+              },
+              {
+                  "title": "Avoid Online Job Scams",
+                  "intro": "Fake job offers often promise easy money and then ask applicants for deposits, fees or sensitive information.",
+                  "image": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          This topic helps you identify and avoid fraudulent online job offers, such as fake data entry jobs, pyramid schemes, and "pay for guaranteed work" scams. It provides guidelines for safe job hunting.
+
+          🛠️ <b>Required Skills:</b>
+          • Awareness of common scam patterns
+          • Ability to verify company legitimacy
+          • Safe online practices
+          • Critical thinking
+          • Knowledge of official job portals
+
+          📈 <b>How to Improve Skills:</b>
+          1. Read government advisories on job scams (NCS, FTC)
+          2. Always verify company details on official websites
+          3. Never share OTPs, passwords, or pay deposits
+          4. Check reviews on sites like Glassdoor
+          5. Use only reputable job boards
+
+          💼 <b>Legitimate Job Sources:</b>
+          • Government job portal – ncs.gov.in
+          • Official company career pages
+          • Reputed job boards (LinkedIn, Indeed)
+
+          💰 <b>Earning Sites:</b>
+          • No site can guarantee a job; beware of any site that asks for payment.
+
+          🔗 <b>Genuine Links:</b>
+          • https://www.ncs.gov.in
+          • https://www.consumer.ftc.gov/articles/job-scams
+          • https://www.glassdoor.com
+          • https://www.linkedin.com/help/linkedin/answer/a1342507"""
+              },
+              {
+                  "title": "Learn Excel for Better Opportunities",
+                  "intro": "Excel is useful for administration, finance, operations, sales and data-related jobs.",
+                  "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Excel skills are essential for data entry, analysis, reporting, and many administrative roles. Proficiency in Excel can lead to jobs in finance, operations, sales, and data analytics.
+
+          🛠️ <b>Required Skills:</b>
+          • Formulas (VLOOKUP, IF, SUMIF, INDEX-MATCH)
+          • Pivot tables and charts
+          • Data cleaning and sorting
+          • Conditional formatting
+          • Basic macros (optional)
+
+          📈 <b>How to Improve Skills:</b>
+          1. Practice with real datasets from Kaggle
+          2. Take free courses on Microsoft Learn or YouTube (ExcelIsFun)
+          3. Build a dashboard project (e.g., sales analysis)
+          4. Learn keyboard shortcuts for efficiency
+          5. Explore advanced functions (Power Query)
+
+          💼 <b>Legitimate Job Sources:</b>
+          • Naukri.com – naukri.com
+          • Indeed – indeed.co.in
+          • LinkedIn – linkedin.com/jobs
+
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr (data entry/Excel gigs)
+
+          🔗 <b>Genuine Links:</b>
+          • https://support.microsoft.com/en-us/excel
+          • https://www.kaggle.com/datasets
+          • https://www.linkedin.com/learning/topics/excel
+          • https://www.upwork.com"""
+              },
+              {
+                  "title": "Build a Professional CV",
+                  "intro": "A clear CV should quickly show your relevant skills, projects, experience and achievements.",
+                  "image": "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          A well-crafted CV is your first impression to employers. It should highlight your relevant skills, projects, experience, and achievements in a clear, ATS-friendly format.
+
+          🛠️ <b>Required Skills:</b>
+          • Clear and concise writing
+          • Understanding of Applicant Tracking Systems (ATS)
+          • Attention to detail
+          • Ability to quantify achievements
+          • Design sensibility (using templates)
+
+          📈 <b>How to Improve Skills:</b>
+          1. Use free CV templates from Canva or Google Docs
+          2. Tailor your CV for each job application
+          3. Ask for feedback from professionals or mentors
+          4. Include measurable results (e.g., "Increased sales by 20%")
+          5. Keep it to 1-2 pages
+
+          💼 <b>Legitimate Job Sources:</b>
+          • All job portals (LinkedIn, Indeed, Naukri)
+          • Company career pages
+
+          💰 <b>Earning Sites:</b>
+          • Not applicable; a good CV helps you get jobs on any platform.
+
+          🔗 <b>Genuine Links:</b>
+          • https://www.canva.com/resumes/templates/
+          • https://zety.com/blog/ats-resume
+          • https://www.linkedin.com/help/linkedin/answer/a507453"""
+              },
+              {
+                  "title": "Use AI Tools to Improve Productivity",
+                  "intro": "AI tools can improve productivity in writing, research, coding and repetitive tasks.",
+                  "image": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          AI tools like ChatGPT, Gemini, and others can boost productivity in writing, research, coding, and repetitive tasks. Knowing how to use them effectively is a valuable skill in many jobs.
+
+          🛠️ <b>Required Skills:</b>
+          • Prompt engineering (writing clear instructions)
+          • Critical thinking to verify AI outputs
+          • Understanding of AI capabilities and limitations
+          • Basic data privacy awareness
+          • Ability to integrate AI into workflows
+
+          📈 <b>How to Improve Skills:</b>
+          1. Experiment with free versions of ChatGPT, Gemini, or Claude
+          2. Learn to write effective prompts (Coursera course)
+          3. Use AI for personal projects (e.g., summarizing, coding help)
+          4. Stay updated on AI news and ethics
+          5. Practice verifying AI-generated information
+
+          💼 <b>Legitimate Job Sources:</b>
+          • Remote job boards (We Work Remotely, Remote.co)
+          • Freelance platforms (Upwork, Fiverr)
+
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr (AI-related gigs)
+
+          🔗 <b>Genuine Links:</b>
+          • https://openai.com/chatgpt
+          • https://gemini.google.com
+          • https://www.coursera.org/learn/prompt-engineering
+          • https://weworkremotely.com"""
+              },
+              {
+                  "title": "Learn Basic Coding",
+                  "intro": "Basic coding can open opportunities in websites, automation, software and technical freelancing.",
+                  "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Basic coding skills open doors in web development, automation, data analysis, and software engineering. Even non‑technical roles value employees who can write simple scripts or understand code.
+
+          🛠️ <b>Required Skills:</b>
+          • One programming language (Python, JavaScript, etc.)
+          • Problem-solving and logical thinking
+          • Basic algorithms and data structures
+          • Version control (Git)
+          • Ability to debug and read documentation
+
+          📈 <b>How to Improve Skills:</b>
+          1. Use free resources like freeCodeCamp or Codecademy
+          2. Build a personal project (e.g., a to‑do app or website)
+          3. Contribute to open-source projects on GitHub
+          4. Practice on coding challenge sites (LeetCode, HackerRank)
+          5. Join coding communities (Stack Overflow, Reddit r/learnprogramming)
+
+          💼 <b>Legitimate Job Sources:</b>
+          • GitHub Jobs – github.com/jobs
+          • Stack Overflow Jobs – stackoverflow.com/jobs
+          • LinkedIn – linkedin.com/jobs
+
+          💰 <b>Earning Sites:</b>
+          • Upwork, Fiverr, Toptal (for experienced devs)
+
+          🔗 <b>Genuine Links:</b>
+          • https://www.freecodecamp.org
+          • https://www.codecademy.com
+          • https://github.com
+          • https://www.toptal.com"""
+              },
+              {
+                  "title": "Create Digital Products",
+                  "intro": "Templates, checklists, guides and spreadsheets can solve specific problems for customers.",
+                  "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Digital product creators design and sell downloadable goods like eBooks, templates, courses, and software tools. This can generate passive income after initial effort.
+
+          🛠️ <b>Required Skills:</b>
+          • Product design and creation
+          • Marketing and sales copy
+          • Customer feedback analysis
+          • Basic understanding of e‑commerce platforms
+          • Ability to identify niche problems
+
+          📈 <b>How to Improve Skills:</b>
+          1. Identify a niche problem you can solve
+          2. Create a simple MVP (minimum viable product)
+          3. Sell on platforms like Gumroad, Etsy, or Creative Market
+          4. Gather feedback and improve
+          5. Learn from successful digital product creators (YouTube, blogs)
+
+          💼 <b>Legitimate Job Sources:</b>
+          • Gumroad – gumroad.com
+          • Etsy – etsy.com
+          • Creative Market – creativemarket.com
+
+          💰 <b>Earning Sites:</b>
+          • Gumroad, Etsy, Shopify (for your own store)
+
+          🔗 <b>Genuine Links:</b>
+          • https://gumroad.com
+          • https://www.etsy.com
+          • https://creativemarket.com
+          • https://www.shopify.com"""
+              },
+              {
+                  "title": "Improve Your Online Job Search",
+                  "intro": "A targeted job search is better than applying randomly to every vacancy.",
+                  "image": "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Effective job searching involves strategy, networking, and tailoring applications to increase your chances. It’s more than just applying randomly.
+
+          🛠️ <b>Required Skills:</b>
+          • Networking (online and offline)
+          • Research skills
+          • Interview preparation
+          • Customizing CV and cover letter
+          • Tracking applications
+
+          📈 <b>How to Improve Skills:</b>
+          1. Set up job alerts on multiple platforms
+          2. Use LinkedIn to connect with recruiters and industry professionals
+          3. Practice mock interviews with friends or online tools
+          4. Customize your CV for each application
+          5. Keep a spreadsheet of applications and follow‑ups
+
+          💼 <b>Legitimate Job Sources:</b>
+          • LinkedIn – linkedin.com/jobs
+          • Indeed – indeed.co.in
+          • Naukri.com – naukri.com
+
+          💰 <b>Earning Sites:</b>
+          • Not a direct earning site; helps you find jobs on legitimate platforms.
+
+          🔗 <b>Genuine Links:</b>
+          • https://www.linkedin.com/jobs
+          • https://www.indeed.co.in
+          • https://www.naukri.com"""
+              },
+              {
+                  "title": "Start Virtual Assistance",
+                  "intro": "Virtual assistants can help businesses with administration, research, communication and support.",
+                  "image": "https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=85",
+                  "details": """📋 <b>Job Description:</b>
+          Virtual assistants provide remote administrative, technical, or creative support to businesses and entrepreneurs. Tasks in
