@@ -88,15 +88,119 @@ jobs:
           else:
               slot = int(os.environ.get("INPUT_POST_SLOT", "1")) - 1
 
-          # Topic database (36 topics, abbreviated here for brevity)
+          # Example topic database (abbreviated — expand to 36 topics)
           topics = [
-              {"title":"Freelancing for Beginners","image":"https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              {"title":"Learn Video Editing","image":"https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              {"title":"WordPress Development","image":"https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              {"title":"Canva Graphic Design","image":"https://images.unsplash.com/photo-1581090700227-4c4f7a3d3f4b?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              {"title":"Digital Marketing","image":"https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              {"title":"Excel Skills","image":"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85","content":"..."},
-              # ... continue until 36 topics (Virtual Assistance, Content Writing, Translation, Data Entry, Web Development, Python, JavaScript, SEO, Social Media, YouTube, Resume, Tutoring, Remote Support, AI Services, Digital Products, Affiliate Marketing, Blogging, E-commerce, Local Business, No-code, Mobile Apps, Research, Bookkeeping, PPT Design, Audio Editing, Transcription, Photography, Online Courses, Scam Awareness)
+              {
+                  "title": "Freelancing for Beginners",
+                  "image": "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=85",
+                  "content": f"""📅 {date_str}
+
+🎯 <b>Freelancing for Beginners</b>
+
+📌 <b>What is this work?</b>
+Offer one skill as a service online.
+
+🛠️ <b>Skills required</b>
+• Communication
+• Time management
+• Proposal writing
+
+🚀 <b>How to start</b>
+1. Pick one skill
+2. Practise daily
+3. Build 3 sample projects
+4. Create a portfolio
+5. Apply only for relevant jobs
+
+💼 <b>Where to find legitimate work</b>
+• <a href="https://www.upwork.com">Upwork</a>
+• <a href="https://www.fiverr.com">Fiverr</a>
+• <a href="https://www.freelancer.com">Freelancer</a>
+• <a href="https://www.naukri.com/freelance-jobs">Naukri India</a>
+
+💰 <b>Earning reality</b>
+Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.
+
+⚠️ <b>Scam warning</b>
+Never pay deposits to unlock jobs. Never share OTP, UPI PIN, or bank passwords.
+
+📅 <b>7-day action plan</b>
+Day 1: Practise
+Day 2: Build sample
+Day 3: Portfolio
+Day 4: Apply
+Day 5: Improve
+Day 6: Network
+Day 7: Review progress
+
+🔗 <b>Useful resources</b>
+• <a href="https://www.freelancer.com">Freelancer</a>
+• <a href="https://www.upwork.com/resources">Upwork Resources</a>
+
+🎯 <b>Today's action</b>
+Create your first sample project.
+
+────────────────
+<b>EarnSmart India</b>
+Learn • Work • Earn Safely
+────────────────"""
+              },
+              {
+                  "title": "Learn Video Editing",
+                  "image": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1200&q=85",
+                  "content": f"""📅 {date_str}
+
+🎯 <b>Learn Video Editing</b>
+
+📌 <b>What is this work?</b>
+Video editors turn raw footage into finished videos.
+
+🛠️ <b>Skills required</b>
+• Video editing software
+• Storytelling
+• Audio editing
+• Captions
+
+🚀 <b>How to start</b>
+1. Install CapCut or DaVinci Resolve
+2. Practise with free footage
+3. Create 5 sample videos
+4. Build a showreel
+5. Offer services to creators
+
+💼 <b>Where to find legitimate work</b>
+• <a href="https://www.fiverr.com/categories/video-animation/video-editing">Fiverr</a>
+• <a href="https://www.upwork.com/freelance-jobs/video-editing/">Upwork</a>
+• <a href="https://www.linkedin.com/jobs/">LinkedIn Jobs</a>
+
+💰 <b>Earning reality</b>
+Beginners in India often earn ₹5,000–₹15,000 per month depending on workload.
+
+⚠️ <b>Scam warning</b>
+Avoid fake “YouTube monetization” schemes.
+
+📅 <b>7-day action plan</b>
+Day 1: Learn basics
+Day 2: Practise
+Day 3: Create samples
+Day 4: Build showreel
+Day 5: Apply
+Day 6: Network
+Day 7: Review progress
+
+🔗 <b>Useful resources</b>
+• <a href="https://www.blackmagicdesign.com/products/davinciresolve">DaVinci Resolve Official</a>
+• <a href="https://creatoracademy.youtube.com">YouTube Creator Academy</a>
+
+🎯 <b>Today's action</b>
+Edit a 30‑second reel.
+
+────────────────
+<b>EarnSmart India</b>
+Learn • Work • Earn Safely
+────────────────"""
+              }
+              # Expand to 36 topics in same format
           ]
 
           # Rotation logic
@@ -111,6 +215,7 @@ jobs:
           print("Preparing post...")
 
           # Send image with short caption
+          print("Sending image with short caption...")
           telegram_request("sendPhoto", {
               "chat_id": CHAT_ID,
               "photo": selected_topic["image"],
@@ -119,6 +224,7 @@ jobs:
           })
 
           # Send detailed message separately
+          print("Sending detailed message...")
           telegram_request("sendMessage", {
               "chat_id": CHAT_ID,
               "text": selected_topic["content"],
