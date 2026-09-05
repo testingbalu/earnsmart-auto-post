@@ -1200,31 +1200,34 @@ def post_quote(data):
 
 
 # =========================================================
-# POST QUIZ
+# POST QUIZ (AS TELEGRAM POLL)
 # =========================================================
 
 def post_quiz(data):
-
-    text = (
-
-        "<b>📚 నేటి బైబిల్ కవిజ్</b>\n\n"
-
-        f"<b>{data['question']}</b>\n\n"
-
-    )
-
-    for i, option in enumerate(data["options"]):
-        text += f"{chr(65 + i)}. {option}\n"
+    """
+    Posts quiz as a Telegram poll.
+    
+    Telegram polls automatically show:
+    - Question and options
+    - Live vote percentages and counts
+    - Correct answer indicator after voting
+    - Beautiful native UI matching the screenshot
+    """
 
     url = (
         "https://api.telegram.org/bot"
-        f"{BOT_TOKEN}/sendMessage"
+        f"{BOT_TOKEN}/sendPoll"
     )
 
     payload = {
         "chat_id": CHANNEL_ID,
-        "text": text,
-        "parse_mode": "HTML"
+        "question": data['question'],
+        "options": data['options'],
+        "type": "quiz",
+        "correct_option_id": data['answer_index'],
+        "explanation": data['explanation'],
+        "explanation_parse_mode": "HTML",
+        "is_anonymous": False
     }
 
     response = requests.post(
@@ -1236,7 +1239,7 @@ def post_quiz(data):
     if not response.ok:
 
         raise RuntimeError(
-            f"Telegram sendMessage failed: "
+            f"Telegram sendPoll failed: "
             f"HTTP {response.status_code}: "
             f"{response.text[:500]}"
         )
