@@ -1064,7 +1064,7 @@ JSON మాత్రమే:
     "ఎంపిక 1",
     "ఎంపిక 2",
     "ఎంపిక 3",
-    "ఎంపిక 4"
+    "ఎంప��క 4"
   ],
   "answer_index": 0,
   "explanation": "సరైన సమాధానం ఎందుకు సరైందో చిన్న వివరణ",
@@ -1227,7 +1227,7 @@ def post_quiz(data):
         "correct_option_id": data['answer_index'],
         "explanation": data['explanation'],
         "explanation_parse_mode": "HTML",
-        "is_anonymous": False
+        "is_anonymous": True
     }
 
     response = requests.post(
