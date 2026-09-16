@@ -101,6 +101,7 @@ def call_gemini_json(model, payload):
                     body = response.json()
                 except ValueError as exc:
                     raise RuntimeError(f"{model}: invalid JSON response: {response.text[:800]}") from exc
+
                 text = extract_text_from_gemini_response(body, model)
                 text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
                 return json.loads(text)
