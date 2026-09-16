@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+
 def require_env(name):
     value = os.environ.get(name)
     if not value:
@@ -53,6 +54,38 @@ def save_history(history):
         json.dump(history[-100:], file, ensure_ascii=False, indent=2)
 
 
+def extract_text_from_gemini_response(body, model_name):
+    if not isinstance(body, dict):
+        raise ValueError(f"{model_name}: Gemini returned non-JSON payload: {body!r}")
+
+    if "error" in body:
+        error = body.get("error")
+        details = error.get("message") if isinstance(error, dict) else str(error)
+        raise RuntimeError(f"{model_name}: Gemini API error: {details}")
+
+    candidates = body.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        raise ValueError(f"{model_name}: Gemini returned no candidates: {body}")
+
+    candidate = candidates[0]
+    if not isinstance(candidate, dict):
+        raise ValueError(f"{model_name}: Unexpected candidate format: {candidate!r}")
+
+    content = candidate.get("content")
+    if not isinstance(content, dict):
+        raise ValueError(f"{model_name}: Candidate missing content: {candidate!r}")
+
+    parts = content.get("parts")
+    if not isinstance(parts, list) or not parts:
+        raise ValueError(f"{model_name}: Candidate missing text parts: {content!r}")
+
+    for part in parts:
+        if isinstance(part, dict) and isinstance(part.get("text"), str):
+            return part["text"].strip()
+
+    raise ValueError(f"{model_name}: Gemini returned content without text: {parts!r}")
+
+
 def call_gemini_json(model, payload):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     headers = {
@@ -64,8 +97,11 @@ def call_gemini_json(model, payload):
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=90)
             if response.ok:
-                body = response.json()
-                text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+                try:
+                    body = response.json()
+                except ValueError as exc:
+                    raise RuntimeError(f"{model}: invalid JSON response: {response.text[:800]}") from exc
+                text = extract_text_from_gemini_response(body, model)
                 text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
                 return json.loads(text)
 
