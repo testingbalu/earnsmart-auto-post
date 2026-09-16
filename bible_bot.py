@@ -14,20 +14,32 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 
 
 # ============================================================
-# CONFIGURATION
+# CONFIG
 # ============================================================
-
-RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 HISTORY_FILE = "posting_history.json"
 
+RETRYABLE_STATUS_CODES = {
+    429, 500, 502, 503, 504
+}
+
+GEMINI_API_BASE = (
+    "https://generativelanguage.googleapis.com/v1beta"
+)
+
+
+# ============================================================
+# ENVIRONMENT VARIABLES
+# ============================================================
 
 def require_env(name):
     value = os.environ.get(name)
+
     if not value:
         raise RuntimeError(
             f"Missing required environment variable: {name}"
         )
+
     return value.strip()
 
 
@@ -36,17 +48,26 @@ BOT_TOKEN = require_env("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = require_env("BIBLE_CHANNEL_ID")
 
 
-# Current stable text model.
-# Can be overridden through GitHub Secrets/Variables.
-GEMINI_MODELS = [
-    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-    os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite"),
+# ============================================================
+# MODEL CANDIDATES
+#
+# The script checks which models are actually available
+# for your API key before using them.
+# ============================================================
+
+TEXT_MODEL_CANDIDATES = [
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
 ]
 
-
-# Current image generation model.
-IMAGE_MODELS = [
-    os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
+IMAGE_MODEL_CANDIDATES = [
+    "gemini-3.1-flash-image",
+    "gemini-2.5-flash-image",
 ]
 
 
@@ -55,100 +76,272 @@ IMAGE_MODELS = [
 # ============================================================
 
 def load_history():
+
     if not os.path.exists(HISTORY_FILE):
         return []
 
     try:
+
         with open(
             HISTORY_FILE,
             "r",
             encoding="utf-8"
         ) as file:
+
             data = json.load(file)
 
         if isinstance(data, list):
             return data
 
-        return []
-
     except Exception as exc:
-        print(f"WARNING: Could not load history: {exc}")
-        return []
+
+        print(
+            f"WARNING: Could not load history: {exc}"
+        )
+
+    return []
 
 
 def save_history(history):
+
     try:
+
         with open(
             HISTORY_FILE,
             "w",
             encoding="utf-8"
         ) as file:
+
             json.dump(
                 history[-100:],
                 file,
                 ensure_ascii=False,
                 indent=2
             )
+
     except Exception as exc:
-        print(f"WARNING: Could not save history: {exc}")
+
+        print(
+            f"WARNING: Could not save history: {exc}"
+        )
 
 
 # ============================================================
-# GEMINI RESPONSE HELPERS
+# GEMINI MODEL DISCOVERY
 # ============================================================
 
-def extract_text_from_gemini_response(body, model_name):
+def get_available_models():
+
+    url = (
+        f"{GEMINI_API_BASE}/models"
+    )
+
+    headers = {
+        "x-goog-api-key": GEMINI_API_KEY
+    }
+
+    try:
+
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=30
+        )
+
+        if not response.ok:
+
+            print(
+                "WARNING: Could not retrieve Gemini "
+                f"model list: HTTP {response.status_code}"
+            )
+
+            return {}
+
+        data = response.json()
+
+        models = {}
+
+        for item in data.get("models", []):
+
+            name = item.get("name", "")
+
+            if name.startswith("models/"):
+                name = name.replace(
+                    "models/",
+                    "",
+                    1
+                )
+
+            methods = item.get(
+                "supportedGenerationMethods",
+                []
+            )
+
+            models[name] = methods
+
+        return models
+
+    except Exception as exc:
+
+        print(
+            f"WARNING: Model discovery failed: {exc}"
+        )
+
+        return {}
+
+
+def choose_text_model(available):
+
+    # User can override the automatic selection.
+    custom = os.environ.get(
+        "GEMINI_MODEL",
+        ""
+    ).strip()
+
+    if custom:
+
+        if not available or custom in available:
+
+            print(
+                f"Using custom Gemini model: {custom}"
+            )
+
+            return custom
+
+        print(
+            f"WARNING: GEMINI_MODEL={custom} "
+            "is not available. Automatic selection."
+        )
+
+    for model in TEXT_MODEL_CANDIDATES:
+
+        methods = available.get(
+            model,
+            []
+        )
+
+        if (
+            not available
+            or "generateContent" in methods
+        ):
+
+            print(
+                f"Selected Gemini text model: {model}"
+            )
+
+            return model
+
+    raise RuntimeError(
+        "No usable Gemini text model found. "
+        "Check your Gemini API key and API access."
+    )
+
+
+def choose_image_model(available):
+
+    custom = os.environ.get(
+        "GEMINI_IMAGE_MODEL",
+        ""
+    ).strip()
+
+    if custom:
+
+        if not available or custom in available:
+
+            print(
+                f"Using custom Gemini image model: {custom}"
+            )
+
+            return custom
+
+        print(
+            f"WARNING: GEMINI_IMAGE_MODEL={custom} "
+            "is not available. Automatic selection."
+        )
+
+    for model in IMAGE_MODEL_CANDIDATES:
+
+        methods = available.get(
+            model,
+            []
+        )
+
+        if (
+            not available
+            or "generateContent" in methods
+        ):
+
+            print(
+                f"Selected Gemini image model: {model}"
+            )
+
+            return model
+
+    raise RuntimeError(
+        "No usable Gemini image model found."
+    )
+
+
+# ============================================================
+# GEMINI JSON RESPONSE
+# ============================================================
+
+def extract_text_from_gemini_response(
+    body,
+    model_name
+):
 
     if not isinstance(body, dict):
+
         raise ValueError(
-            f"{model_name}: Gemini returned non-JSON payload"
+            f"{model_name}: Invalid Gemini response."
         )
 
     if "error" in body:
+
         error = body.get("error")
 
         if isinstance(error, dict):
+
             message = error.get(
                 "message",
                 str(error)
             )
+
         else:
+
             message = str(error)
 
         raise RuntimeError(
-            f"{model_name}: Gemini API error: {message}"
+            f"{model_name}: {message}"
         )
 
-    candidates = body.get("candidates")
+    candidates = body.get(
+        "candidates"
+    )
 
-    if not isinstance(candidates, list) or not candidates:
-        raise ValueError(
-            f"{model_name}: Gemini returned no candidates: "
-            f"{body}"
+    if not isinstance(
+        candidates,
+        list
+    ) or not candidates:
+
+        raise RuntimeError(
+            f"{model_name}: No candidates returned."
         )
 
     candidate = candidates[0]
 
-    if not isinstance(candidate, dict):
-        raise ValueError(
-            f"{model_name}: Invalid candidate format"
-        )
+    content = candidate.get(
+        "content",
+        {}
+    )
 
-    content = candidate.get("content")
+    parts = content.get(
+        "parts",
+        []
+    )
 
-    if not isinstance(content, dict):
-        raise ValueError(
-            f"{model_name}: Candidate has no content"
-        )
-
-    parts = content.get("parts")
-
-    if not isinstance(parts, list):
-        raise ValueError(
-            f"{model_name}: Candidate has no parts"
-        )
-
-    text_parts = []
+    texts = []
 
     for part in parts:
 
@@ -157,53 +350,61 @@ def extract_text_from_gemini_response(body, model_name):
 
         text = part.get("text")
 
-        if isinstance(text, str) and text.strip():
-            text_parts.append(text.strip())
+        if isinstance(text, str):
+            texts.append(text)
 
-    if not text_parts:
-        raise ValueError(
-            f"{model_name}: No text found in Gemini response"
+    if not texts:
+
+        raise RuntimeError(
+            f"{model_name}: No text returned."
         )
 
-    return "\n".join(text_parts).strip()
+    return "\n".join(texts).strip()
 
 
 def clean_json_text(text):
 
     text = text.strip()
 
-    # Remove markdown JSON fences.
     text = re.sub(
-        r"^```(?:json)?\s*",
+        r"^```json\s*",
         "",
         text,
         flags=re.IGNORECASE
     )
 
     text = re.sub(
+        r"^```\s*",
+        "",
+        text
+    )
+
+    text = re.sub(
         r"\s*```$",
         "",
-        text,
-        flags=re.IGNORECASE
+        text
     )
 
     return text.strip()
 
 
 # ============================================================
-# GEMINI TEXT API
+# GEMINI TEXT CALL
 # ============================================================
 
-def call_gemini_json(model, payload):
+def call_gemini_json(
+    model,
+    payload
+):
 
     url = (
-        "https://generativelanguage.googleapis.com/"
-        f"v1beta/models/{model}:generateContent"
+        f"{GEMINI_API_BASE}/models/"
+        f"{model}:generateContent"
     )
 
     headers = {
         "x-goog-api-key": GEMINI_API_KEY,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
     for attempt in range(5):
@@ -217,21 +418,9 @@ def call_gemini_json(model, payload):
                 timeout=90
             )
 
-            # -------------------------------
-            # SUCCESS
-            # -------------------------------
-
             if response.ok:
 
-                try:
-                    body = response.json()
-
-                except ValueError as exc:
-
-                    raise RuntimeError(
-                        f"{model}: Invalid JSON response: "
-                        f"{response.text[:800]}"
-                    ) from exc
+                body = response.json()
 
                 text = extract_text_from_gemini_response(
                     body,
@@ -241,37 +430,38 @@ def call_gemini_json(model, payload):
                 text = clean_json_text(text)
 
                 try:
+
                     return json.loads(text)
 
                 except json.JSONDecodeError as exc:
 
                     raise RuntimeError(
-                        f"{model}: Gemini returned invalid JSON:\n"
+                        "Gemini returned invalid JSON:\n"
                         f"{text[:1500]}"
                     ) from exc
 
-            # -------------------------------
-            # PERMANENT ERROR
-            # -------------------------------
-
-            if response.status_code not in RETRYABLE_STATUS_CODES:
+            # Don't retry permanent errors.
+            if (
+                response.status_code
+                not in RETRYABLE_STATUS_CODES
+            ):
 
                 raise RuntimeError(
-                    f"{model}: HTTP {response.status_code}: "
+                    f"{model}: HTTP "
+                    f"{response.status_code}: "
                     f"{response.text[:1000]}"
                 )
 
-            # -------------------------------
-            # RETRYABLE ERROR
-            # -------------------------------
-
             delay = (
-                min(60, 2 ** attempt * 5)
+                min(
+                    60,
+                    5 * (2 ** attempt)
+                )
                 + random.uniform(0, 2)
             )
 
             print(
-                f"Gemini {model} returned "
+                f"Gemini temporary error "
                 f"{response.status_code}. "
                 f"Retrying in {delay:.1f}s..."
             )
@@ -279,6 +469,7 @@ def call_gemini_json(model, payload):
             time.sleep(delay)
 
         except RuntimeError:
+
             raise
 
         except requests.RequestException as exc:
@@ -289,25 +480,35 @@ def call_gemini_json(model, payload):
                 ) from exc
 
             delay = (
-                min(60, 2 ** attempt * 5)
+                min(
+                    60,
+                    5 * (2 ** attempt)
+                )
                 + random.uniform(0, 2)
             )
 
             print(
-                f"Gemini network error: {exc}. "
+                f"Network error: {exc}. "
                 f"Retrying in {delay:.1f}s..."
             )
 
             time.sleep(delay)
 
     raise RuntimeError(
-        f"Gemini API exhausted retries for {model}"
+        f"Gemini retries exhausted for {model}"
     )
 
 
 def gemini(prompt):
 
+    available = get_available_models()
+
+    model = choose_text_model(
+        available
+    )
+
     payload = {
+
         "contents": [
             {
                 "role": "user",
@@ -320,43 +521,73 @@ def gemini(prompt):
         ],
 
         "generationConfig": {
+
             "temperature": 0.7,
-            "responseMimeType": "application/json",
-        },
+
+            "responseMimeType":
+                "application/json"
+        }
     }
 
-    last_error = None
+    try:
 
-    for model in GEMINI_MODELS:
+        return call_gemini_json(
+            model,
+            payload
+        )
 
-        if not model:
-            continue
+    except Exception as first_error:
 
-        try:
+        print(
+            f"Primary Gemini model failed: "
+            f"{first_error}"
+        )
 
-            print(f"Using Gemini text model: {model}")
+        # Try other available models.
+        for fallback in TEXT_MODEL_CANDIDATES:
 
-            return call_gemini_json(
-                model,
-                payload
+            if fallback == model:
+                continue
+
+            methods = available.get(
+                fallback,
+                []
             )
 
-        except Exception as exc:
+            if (
+                available
+                and "generateContent"
+                not in methods
+            ):
+                continue
 
-            last_error = str(exc)
+            try:
 
-            print(
-                f"Gemini text model {model} failed: "
-                f"{exc}"
-            )
+                print(
+                    f"Trying fallback Gemini model: "
+                    f"{fallback}"
+                )
 
-    raise RuntimeError(
-        f"All Gemini text models failed: {last_error}"
-    )
+                return call_gemini_json(
+                    fallback,
+                    payload
+                )
+
+            except Exception as exc:
+
+                print(
+                    f"Fallback {fallback} failed: "
+                    f"{exc}"
+                )
+
+        raise RuntimeError(
+            f"All Gemini text models failed. "
+            f"First error: {first_error}"
+        )
 
 
 # ============================================================
-# TEXT NORMALIZATION
+# NORMALIZATION
 # ============================================================
 
 def normalize_text(value):
@@ -372,63 +603,56 @@ def normalize_text(value):
 # QUOTE GENERATION
 # ============================================================
 
-def used_quotes(history):
-
-    return {
-        normalize_text(item.get("text"))
-        for item in history
-        if item.get("type") in ("quote", "verse")
-        and normalize_text(item.get("text"))
-    }
-
-
 def generate_quote(history):
 
     previous = [
+
         item.get("text", "")
+
         for item in history
-        if item.get("type") in ("quote", "verse")
+
+        if item.get("type")
+        in ("quote", "verse")
+
         and item.get("text")
     ]
 
-    rejected = used_quotes(history)
-
-    # Only send recent history to Gemini.
-    previous_recent = previous[-40:]
+    rejected = {
+        normalize_text(x)
+        for x in previous
+    }
 
     for attempt in range(8):
 
         prompt = f"""
-మీరు "Telugu Christians world" అనే తెలుగు క్రైస్తవ
-టెలిగ్రామ్ ఛానల్ కోసం ఒక Bible verse post తయారు చేస్తున్నారు.
+"Telugu Christians world" అనే తెలుగు క్రైస్తవ
+Telegram channel కోసం ఒక Bible verse post తయారు చేయండి.
 
-ముఖ్యమైన నియమాలు:
+నియమాలు:
 
-1. నిజమైన బైబిల్ వాక్యాన్ని మాత్రమే ఉపయోగించండి.
-2. మీకు ఖచ్చితంగా తెలిసిన Bible reference మాత్రమే ఇవ్వండి.
-3. ఇప్పటికే ఉపయోగించిన వాక్యాన్ని మళ్లీ ఉపయోగించవద్దు.
-4. ఇప్పటికే ఉన్న వాక్యానికి చాలా దగ్గరగా ఉన్న వాక్యాన్ని కూడా
-   ఉపయోగించవద్దు.
+1. నిజమైన Bible verse మాత్రమే ఉపయోగించండి.
+2. Bible reference సరైనదిగా ఉండాలి.
+3. ఇప్పటికే ఉపయోగించిన verse ను మళ్లీ ఉపయోగించవద్దు.
+4. ఇప్పటికే ఉన్న verse కు చాలా దగ్గరగా ఉన్న verse కూడా వద్దు.
 5. సహజమైన తెలుగు ఉపయోగించండి.
 6. JSON మాత్రమే ఇవ్వండి.
 
-ఇప్పటికే ఉపయోగించిన వాక్యాలు:
+ఇటీవల ఉపయోగించిన verses:
 
-{json.dumps(previous_recent, ensure_ascii=False)}
+{json.dumps(previous[-40:], ensure_ascii=False)}
 
 JSON format:
 
 {{
-  "text": "తెలుగులో బైబిల్ వాక్యం",
+  "text": "తెలుగు బైబిల్ వాక్యం",
   "reference": "గ్రంథం అధ్యాయం:వచనం",
-  "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే చిన్న ఉపయోగకరమైన ఆలోచన"
+  "reflection": "ఈ వాక్యం మన జీవితానికి చెప్పే చిన్న ఆలోచన"
 }}
 """
 
         data = gemini(prompt)
 
         if not isinstance(data, dict):
-            print("Invalid quote response.")
             continue
 
         text = str(
@@ -455,25 +679,26 @@ JSON format:
             return {
                 "text": text,
                 "reference": reference,
-                "reflection": reflection,
+                "reflection": reflection
             }
 
-        print(
-            f"Duplicate/invalid quote rejected "
-            f"(attempt {attempt + 1})"
-        )
-
         if text:
+
             previous.append(text)
             rejected.add(key)
 
+        print(
+            f"Quote rejected. "
+            f"Attempt {attempt + 1}/8"
+        )
+
     raise RuntimeError(
-        "Could not generate a unique Bible quote."
+        "Could not generate a unique Bible verse."
     )
 
 
 # ============================================================
-# GEMINI IMAGE GENERATION
+# IMAGE GENERATION
 # ============================================================
 
 def generate_ai_background(
@@ -482,278 +707,239 @@ def generate_ai_background(
     reflection
 ):
 
+    available = get_available_models()
+
+    model = choose_image_model(
+        available
+    )
+
     prompt = f"""
 Create a beautiful bright Christian Bible illustration
 for a Telugu Bible verse card.
 
-Verse:
+VERSE:
 {quote}
 
-Reference:
+REFERENCE:
 {reference}
 
-Meaning:
+MEANING:
 {reflection}
 
-VISUAL DIRECTION:
-
-- Create the visual scene based on the meaning of the verse.
-- Comfort/protection: peaceful protective scene.
-- Hope: sunrise/light.
-- Strength: Jesus helping or encouraging someone.
-- Prayer: peaceful prayer scene.
-- Guidance: path with Jesus walking beside a person.
-- Forgiveness: reconciliation.
-- Healing: comforting healing scene.
-- Love/kindness: warm family/community scene.
-
-Style:
+VISUAL STYLE:
 
 - Bright
 - Warm
 - Peaceful
 - Uplifting
-- Christian devotional greeting-card style
+- Christian devotional greeting card
 - Soft sunlight
 - Blue sky
 - Gentle clouds
 - Greenery
-- Flowers where appropriate
 - Natural pastel colors
-- Compassionate and dignified depiction of Jesus
+- Compassionate dignified depiction of Jesus
 - Historically inspired clothing
+
+SCENE:
+
+Choose the visual scene according to the meaning
+of the verse.
+
+Examples:
+
+Hope = sunrise and peaceful light.
+
+Protection = safe peaceful scene.
+
+Strength = Jesus helping someone.
+
+Prayer = peaceful prayer scene.
+
+Guidance = path with Jesus walking beside a person.
+
+Forgiveness = reconciliation.
+
+Healing = comforting healing scene.
+
+Love = family or people helping each other.
 
 COMPOSITION:
 
-- Portrait / vertical composition.
-- Prefer 4:5 aspect ratio.
-- Keep the upper portion relatively clean and bright.
-- Keep the main visual subject toward the lower or side portion.
-- Leave enough clean space for Telugu text to be added later.
+- Portrait format.
+- 4:5 composition.
+- Keep upper third relatively clean.
+- Leave clean space for Telugu text.
+- Keep important subjects toward lower or side areas.
 
-DO NOT generate:
+DO NOT include:
 
-- Telugu text
-- English text
-- Bible verses
+- Telugu letters
+- English letters
+- Any text
+- Bible verse text
 - Logos
-- Signatures
 - Watermarks
+- Signatures
 - Labels
-- Black background
-- Horror mood
-- Dark cinematic mood
+- Dark horror mood
+- Heavy black background
 - Heavy vignette
 """
 
-    last_error = None
+    payload = {
 
-    for model in IMAGE_MODELS:
-
-        if not model:
-            continue
-
-        print(
-            f"Using Gemini image model: {model}"
-        )
-
-        url = (
-            "https://generativelanguage.googleapis.com/"
-            f"v1beta/models/{model}:generateContent"
-        )
-
-        headers = {
-            "x-goog-api-key": GEMINI_API_KEY,
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-
-            "generationConfig": {
-                "responseModalities": [
-                    "TEXT",
-                    "IMAGE"
-                ],
-
-                "responseFormat": {
-                    "image": {
-                        "aspectRatio": "4:5"
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": prompt
                     }
-                }
+                ]
             }
+        ],
+
+        "generationConfig": {
+            "responseModalities": [
+                "TEXT",
+                "IMAGE"
+            ]
         }
+    }
 
-        for attempt in range(5):
+    url = (
+        f"{GEMINI_API_BASE}/models/"
+        f"{model}:generateContent"
+    )
 
-            try:
+    headers = {
+        "x-goog-api-key": GEMINI_API_KEY,
+        "Content-Type": "application/json"
+    }
 
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=180
+    for attempt in range(5):
+
+        try:
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=180
+            )
+
+            if response.ok:
+
+                body = response.json()
+
+                candidates = body.get(
+                    "candidates",
+                    []
                 )
 
-                if response.ok:
+                for candidate in candidates:
 
-                    body = response.json()
-
-                    if "error" in body:
-                        raise RuntimeError(
-                            str(body["error"])
-                        )
-
-                    candidates = body.get(
-                        "candidates",
-                        []
+                    parts = (
+                        candidate
+                        .get("content", {})
+                        .get("parts", [])
                     )
 
-                    for candidate in candidates:
+                    for part in parts:
 
-                        content = candidate.get(
-                            "content",
-                            {}
+                        inline_data = part.get(
+                            "inlineData"
                         )
 
-                        parts = content.get(
-                            "parts",
-                            []
+                        if not inline_data:
+                            continue
+
+                        encoded = inline_data.get(
+                            "data"
                         )
 
-                        for part in parts:
+                        if not encoded:
+                            continue
 
-                            inline_data = (
-                                part.get("inlineData")
+                        image_bytes = (
+                            base64.b64decode(
+                                encoded
                             )
+                        )
 
-                            if not inline_data:
-                                continue
+                        image = Image.open(
+                            BytesIO(image_bytes)
+                        )
 
-                            encoded = (
-                                inline_data.get("data")
-                            )
+                        image.load()
 
-                            if not encoded:
-                                continue
+                        return image.convert(
+                            "RGB"
+                        )
 
-                            try:
-
-                                image_bytes = base64.b64decode(
-                                    encoded,
-                                    validate=True
-                                )
-
-                                image = Image.open(
-                                    BytesIO(image_bytes)
-                                )
-
-                                image.load()
-
-                                return image.convert(
-                                    "RGB"
-                                )
-
-                            except Exception as exc:
-
-                                raise RuntimeError(
-                                    f"Invalid generated image: "
-                                    f"{exc}"
-                                ) from exc
-
-                    raise RuntimeError(
-                        f"{model}: Gemini returned "
-                        "no image data."
-                    )
-
-                if (
-                    response.status_code
-                    not in RETRYABLE_STATUS_CODES
-                ):
-
-                    raise RuntimeError(
-                        f"{model}: HTTP "
-                        f"{response.status_code}: "
-                        f"{response.text[:1000]}"
-                    )
-
-                delay = (
-                    min(60, 2 ** attempt * 5)
-                    + random.uniform(0, 2)
+                raise RuntimeError(
+                    f"{model}: No image data returned."
                 )
 
-                print(
-                    f"Gemini image temporary error "
-                    f"{response.status_code}. "
-                    f"Retrying in {delay:.1f}s..."
+            if (
+                response.status_code
+                not in RETRYABLE_STATUS_CODES
+            ):
+
+                raise RuntimeError(
+                    f"{model}: HTTP "
+                    f"{response.status_code}: "
+                    f"{response.text[:1000]}"
                 )
 
-                time.sleep(delay)
+            delay = (
+                min(
+                    60,
+                    5 * (2 ** attempt)
+                )
+                + random.uniform(0, 2)
+            )
 
-            except RuntimeError:
+            print(
+                f"Image API temporary error "
+                f"{response.status_code}. "
+                f"Retrying in {delay:.1f}s..."
+            )
+
+            time.sleep(delay)
+
+        except RuntimeError:
+
+            raise
+
+        except Exception as exc:
+
+            if attempt == 4:
                 raise
 
-            except requests.RequestException as exc:
-
-                if attempt == 4:
-                    raise RuntimeError(
-                        f"{model}: Network error: {exc}"
-                    ) from exc
-
-                delay = (
-                    min(60, 2 ** attempt * 5)
-                    + random.uniform(0, 2)
+            delay = (
+                min(
+                    60,
+                    5 * (2 ** attempt)
                 )
+                + random.uniform(0, 2)
+            )
 
-                print(
-                    f"Gemini image network error: "
-                    f"{exc}. "
-                    f"Retrying in {delay:.1f}s..."
-                )
+            print(
+                f"Image error: {exc}. "
+                f"Retrying in {delay:.1f}s..."
+            )
 
-                time.sleep(delay)
-
-            except Exception as exc:
-
-                last_error = str(exc)
-
-                if attempt == 4:
-                    break
-
-                delay = (
-                    min(60, 2 ** attempt * 5)
-                    + random.uniform(0, 2)
-                )
-
-                print(
-                    f"Gemini image error: {exc}. "
-                    f"Retrying in {delay:.1f}s..."
-                )
-
-                time.sleep(delay)
-
-        print(
-            f"Image model {model} failed: "
-            f"{last_error}"
-        )
+            time.sleep(delay)
 
     raise RuntimeError(
-        f"Gemini image generation failed: "
-        f"{last_error}"
+        "Gemini image generation failed."
     )
 
 
 # ============================================================
-# FALLBACK BACKGROUND
+# FALLBACK IMAGE
 # ============================================================
 
 def fallback_background():
@@ -803,7 +989,7 @@ def fallback_background():
 
 def find_telugu_font():
 
-    possible_paths = [
+    paths = [
 
         "/usr/share/fonts/truetype/noto/"
         "NotoSansTelugu-Regular.ttf",
@@ -812,16 +998,14 @@ def find_telugu_font():
         "NotoSansTelugu-Regular.ttf",
 
         "/usr/share/fonts/truetype/lohit-telugu/"
-        "Lohit-Telugu.ttf",
-
+        "Lohit-Telugu.ttf"
     ]
 
-    for path in possible_paths:
+    for path in paths:
 
         if os.path.exists(path):
             return path
 
-    # Search entire font directory.
     for root, _, files in os.walk(
         "/usr/share/fonts"
     ):
@@ -829,7 +1013,8 @@ def find_telugu_font():
         for name in files:
 
             if (
-                "telugu" in name.lower()
+                "telugu"
+                in name.lower()
                 and name.lower().endswith(
                     (".ttf", ".otf")
                 )
@@ -842,7 +1027,7 @@ def find_telugu_font():
 
     raise FileNotFoundError(
         "Telugu font not found. "
-        "Install Noto Sans Telugu."
+        "Install fonts-noto-core."
     )
 
 
@@ -872,7 +1057,9 @@ def wrap_text(
             font=font
         )
 
-        width = bbox[2] - bbox[0]
+        width = (
+            bbox[2] - bbox[0]
+        )
 
         if width <= max_width:
 
@@ -881,12 +1068,16 @@ def wrap_text(
         else:
 
             if current:
-                lines.append(current)
+                lines.append(
+                    current
+                )
 
             current = word
 
     if current:
-        lines.append(current)
+        lines.append(
+            current
+        )
 
     return lines
 
@@ -910,11 +1101,10 @@ def make_quote_image(
             reflection
         )
 
-    except Exception as error:
+    except Exception as exc:
 
         print(
-            "WARNING: AI image generation failed: "
-            f"{error}"
+            f"WARNING: AI image failed: {exc}"
         )
 
         print(
@@ -923,7 +1113,9 @@ def make_quote_image(
 
         background = fallback_background()
 
-    background = background.convert("RGB")
+    background = background.convert(
+        "RGB"
+    )
 
     target_ratio = 4 / 5
 
@@ -965,7 +1157,9 @@ def make_quote_image(
             left + new_width,
             top + new_height
         )
-    ).resize(
+    )
+
+    image = image.resize(
         (1080, 1350),
         Image.Resampling.LANCZOS
     )
@@ -979,7 +1173,9 @@ def make_quote_image(
     ).enhance(1.04)
 
     image = image.filter(
-        ImageFilter.GaussianBlur(0.25)
+        ImageFilter.GaussianBlur(
+            0.25
+        )
     ).convert("RGBA")
 
     font_path = find_telugu_font()
@@ -1005,7 +1201,7 @@ def make_quote_image(
     )
 
     # --------------------------------------------
-    # WHITE TRANSPARENT CARD
+    # TRANSPARENT CARD
     # --------------------------------------------
 
     card = Image.new(
@@ -1014,7 +1210,9 @@ def make_quote_image(
         (0, 0, 0, 0)
     )
 
-    card_draw = ImageDraw.Draw(card)
+    card_draw = ImageDraw.Draw(
+        card
+    )
 
     card_draw.rounded_rectangle(
         (42, 48, 1038, 650),
@@ -1029,7 +1227,9 @@ def make_quote_image(
         card
     )
 
-    draw = ImageDraw.Draw(image)
+    draw = ImageDraw.Draw(
+        image
+    )
 
     text_fill = (
         224,
@@ -1070,24 +1270,28 @@ def make_quote_image(
         860
     )
 
-    # Maximum 6 lines
     lines = lines[:6]
 
     line_height = 78
 
     start_y = (
-        330 -
-        (len(lines) - 1)
-        * line_height / 2
+        330
+        - (
+            (len(lines) - 1)
+            * line_height
+            / 2
+        )
     )
 
-    for index, line in enumerate(lines):
+    for index, line in enumerate(
+        lines
+    ):
 
         draw.text(
             (
                 540,
-                start_y +
-                index * line_height
+                start_y
+                + index * line_height
             ),
             line,
             font=verse_font,
@@ -1125,7 +1329,9 @@ def make_quote_image(
         anchor="mm"
     )
 
-    image.convert("RGB").save(
+    image.convert(
+        "RGB"
+    ).save(
         output,
         "PNG",
         optimize=True
@@ -1135,10 +1341,10 @@ def make_quote_image(
 
 
 # ============================================================
-# TELEGRAM HELPERS
+# TELEGRAM
 # ============================================================
 
-def telegram_api(method):
+def telegram_url(method):
 
     return (
         f"https://api.telegram.org/"
@@ -1158,7 +1364,6 @@ def post_quote(data):
         data["reflection"]
     )
 
-    # Escape generated content for Telegram HTML.
     quote = html.escape(
         str(data["text"])
     )
@@ -1184,7 +1389,10 @@ def post_quote(data):
     ) as image_file:
 
         response = requests.post(
-            telegram_api("sendPhoto"),
+
+            telegram_url(
+                "sendPhoto"
+            ),
 
             files={
                 "photo": image_file
@@ -1202,7 +1410,7 @@ def post_quote(data):
     if not response.ok:
 
         raise RuntimeError(
-            "Telegram sendPhoto failed: "
+            f"Telegram sendPhoto failed: "
             f"HTTP {response.status_code}: "
             f"{response.text[:1000]}"
         )
@@ -1210,6 +1418,7 @@ def post_quote(data):
     result = response.json()
 
     if not result.get("ok"):
+
         raise RuntimeError(
             f"Telegram API error: {result}"
         )
@@ -1218,14 +1427,17 @@ def post_quote(data):
 
 
 # ============================================================
-# QUIZ GENERATION
+# QUIZ
 # ============================================================
 
 def generate_quiz(history):
 
     previous = [
+
         x.get("question", "")
+
         for x in history
+
         if x.get("type") == "quiz"
         and x.get("question")
     ][-30:]
@@ -1235,38 +1447,38 @@ def generate_quiz(history):
 
 నియమాలు:
 
-1. నిజమైన Bible information మాత్రమే ఉపయోగించండి.
+1. నిజమైన Bible information మాత్రమే.
 2. పాత ప్రశ్నలను పునరావృతం చేయవద్దు.
-3. కనీసం 4 options ఉండాలి.
-4. exactly 4 options ఇవ్వండి.
-5. answer_index తప్పనిసరిగా 0, 1, 2 లేదా 3 ఉండాలి.
-6. explanation చిన్నగా మరియు స్పష్టంగా ఉండాలి.
-7. reference సరైన Bible reference అయి ఉండాలి.
-8. JSON మాత్రమే ఇవ్వండి.
+3. EXACTLY 4 options ఉండాలి.
+4. answer_index 0, 1, 2 లేదా 3 మాత్రమే.
+5. explanation చిన్నగా ఇవ్వండి.
+6. reference సరైన Bible reference ఇవ్వండి.
+7. JSON మాత్రమే ఇవ్వండి.
 
-ఇటీవల ఉపయోగించిన ప్రశ్నలు:
+పాత ప్రశ్నలు:
 
 {json.dumps(previous, ensure_ascii=False)}
 
 JSON:
 
 {{
-    "question": "ప్రశ్న",
-    "options": [
-        "ఆప్షన్ 1",
-        "ఆప్షన్ 2",
-        "ఆప్షన్ 3",
-        "ఆప్షన్ 4"
-    ],
-    "answer_index": 0,
-    "explanation": "సరైన సమాధానానికి చిన్న వివరణ",
-    "reference": "గ్రంథం అధ్యాయం:వచనం"
+  "question": "ప్రశ్న",
+  "options": [
+    "ఆప్షన్ 1",
+    "ఆప్షన్ 2",
+    "ఆప్షన్ 3",
+    "ఆప్షన్ 4"
+  ],
+  "answer_index": 0,
+  "explanation": "సమాధానం వివరణ",
+  "reference": "గ్రంథం అధ్యాయం:వచనం"
 }}
 """
 
     data = gemini(prompt)
 
     if not isinstance(data, dict):
+
         raise RuntimeError(
             "Invalid quiz response."
         )
@@ -1275,11 +1487,21 @@ JSON:
         data.get("question", "")
     ).strip()
 
-    options = data.get("options")
-
-    answer_index = data.get(
-        "answer_index"
+    options = data.get(
+        "options"
     )
+
+    try:
+
+        answer_index = int(
+            data.get("answer_index")
+        )
+
+    except Exception:
+
+        raise RuntimeError(
+            "Invalid answer_index."
+        )
 
     explanation = str(
         data.get("explanation", "")
@@ -1290,6 +1512,7 @@ JSON:
     ).strip()
 
     if not question:
+
         raise RuntimeError(
             "Quiz question is empty."
         )
@@ -1298,8 +1521,9 @@ JSON:
         not isinstance(options, list)
         or len(options) != 4
     ):
+
         raise RuntimeError(
-            "Quiz must contain exactly 4 options."
+            "Quiz must have exactly 4 options."
         )
 
     options = [
@@ -1308,20 +1532,13 @@ JSON:
     ]
 
     if any(not x for x in options):
+
         raise RuntimeError(
             "Quiz contains empty options."
         )
 
-    try:
-        answer_index = int(
-            answer_index
-        )
-    except (TypeError, ValueError):
-        raise RuntimeError(
-            "Invalid quiz answer_index."
-        )
-
     if answer_index not in range(4):
+
         raise RuntimeError(
             "answer_index must be 0-3."
         )
@@ -1341,20 +1558,42 @@ JSON:
 
 def post_quiz(data):
 
+    explanation = data.get(
+        "explanation",
+        ""
+    )
+
+    explanation = str(
+        explanation
+    )[:200]
+
     response = requests.post(
-        telegram_api("sendPoll"),
+
+        telegram_url(
+            "sendPoll"
+        ),
 
         json={
+
             "chat_id": CHANNEL_ID,
-            "question": data["question"],
-            "options": data["options"],
-            "type": "quiz",
-            "correct_option_id": data["answer_index"],
-            "is_anonymous": True,
-            "explanation": data.get(
-                "explanation",
-                ""
-            )[:200]
+
+            "question":
+                data["question"],
+
+            "options":
+                data["options"],
+
+            "type":
+                "quiz",
+
+            "correct_option_id":
+                data["answer_index"],
+
+            "is_anonymous":
+                True,
+
+            "explanation":
+                explanation
         },
 
         timeout=30
@@ -1363,7 +1602,7 @@ def post_quiz(data):
     if not response.ok:
 
         raise RuntimeError(
-            "Telegram sendPoll failed: "
+            f"Telegram sendPoll failed: "
             f"HTTP {response.status_code}: "
             f"{response.text[:1000]}"
         )
@@ -1373,21 +1612,25 @@ def post_quiz(data):
     if not result.get("ok"):
 
         raise RuntimeError(
-            f"Telegram poll API error: {result}"
+            f"Telegram poll API error: "
+            f"{result}"
         )
 
     return result
 
 
 # ============================================================
-# KNOWLEDGE GENERATION
+# KNOWLEDGE
 # ============================================================
 
 def generate_knowledge(history):
 
     previous = [
+
         x.get("title", "")
+
         for x in history
+
         if x.get("type") == "knowledge"
         and x.get("title")
     ][-20:]
@@ -1398,7 +1641,7 @@ Bible knowledge post తయారు చేయండి.
 
 నియమాలు:
 
-1. నిజమైన Bible information మాత్రమే ఉపయోగించండి.
+1. నిజమైన Bible information మాత్రమే.
 2. పాత topics పునరావృతం చేయవద్దు.
 3. కనీసం 3 ముఖ్యమైన points ఇవ్వండి.
 4. సహజమైన తెలుగు ఉపయోగించండి.
@@ -1411,15 +1654,16 @@ Bible knowledge post తయారు చేయండి.
 JSON:
 
 {{
-    "title": "శీర్షిక",
-    "content": "కనీసం 3 ముఖ్యమైన points",
-    "reference": "సంబంధిత Bible reference"
+  "title": "శీర్షిక",
+  "content": "కనీసం 3 ముఖ్యమైన points",
+  "reference": "సంబంధిత Bible reference"
 }}
 """
 
     data = gemini(prompt)
 
     if not isinstance(data, dict):
+
         raise RuntimeError(
             "Invalid knowledge response."
         )
@@ -1437,11 +1681,13 @@ JSON:
     ).strip()
 
     if not title:
+
         raise RuntimeError(
             "Knowledge title is empty."
         )
 
     if not content:
+
         raise RuntimeError(
             "Knowledge content is empty."
         )
@@ -1479,12 +1725,20 @@ def post_knowledge(data):
     )
 
     response = requests.post(
-        telegram_api("sendMessage"),
+
+        telegram_url(
+            "sendMessage"
+        ),
 
         json={
-            "chat_id": CHANNEL_ID,
-            "text": message,
-            "parse_mode": "HTML"
+            "chat_id":
+                CHANNEL_ID,
+
+            "text":
+                message,
+
+            "parse_mode":
+                "HTML"
         },
 
         timeout=30
@@ -1493,7 +1747,7 @@ def post_knowledge(data):
     if not response.ok:
 
         raise RuntimeError(
-            "Telegram sendMessage failed: "
+            f"Telegram sendMessage failed: "
             f"HTTP {response.status_code}: "
             f"{response.text[:1000]}"
         )
@@ -1503,7 +1757,8 @@ def post_knowledge(data):
     if not result.get("ok"):
 
         raise RuntimeError(
-            f"Telegram message API error: {result}"
+            f"Telegram message API error: "
+            f"{result}"
         )
 
     return result
@@ -1522,15 +1777,19 @@ def main():
         "quote"
     ).strip().lower()
 
+    print("=" * 60)
+    print("TELUGU CHRISTIANS WORLD - BIBLE BOT")
+    print("=" * 60)
+
     print(
-        f"🚀 Starting post type: {post_type}"
+        f"Post type: {post_type}"
     )
 
     try:
 
-        # ----------------------------------------
+        # ============================================
         # QUOTE
-        # ----------------------------------------
+        # ============================================
 
         if post_type == "quote":
 
@@ -1539,30 +1798,35 @@ def main():
             )
 
             print(
-                f"Generated quote: "
+                f"Verse reference: "
                 f"{data['reference']}"
             )
 
             post_quote(data)
 
             history.append({
-                "type": "quote",
-                "text": data.get("text"),
-                "reference": data.get(
-                    "reference"
-                ),
-                "reflection": data.get(
-                    "reflection"
-                ),
+
+                "type":
+                    "quote",
+
+                "text":
+                    data.get("text"),
+
+                "reference":
+                    data.get("reference"),
+
+                "reflection":
+                    data.get("reflection"),
+
                 "timestamp":
                     datetime.now(
                         timezone.utc
                     ).isoformat()
             })
 
-        # ----------------------------------------
+        # ============================================
         # QUIZ
-        # ----------------------------------------
+        # ============================================
 
         elif post_type == "quiz":
 
@@ -1571,33 +1835,41 @@ def main():
             )
 
             print(
-                f"Generated quiz: "
+                f"Quiz: "
                 f"{data['question']}"
             )
 
             post_quiz(data)
 
             history.append({
-                "type": "quiz",
+
+                "type":
+                    "quiz",
+
                 "question":
                     data.get("question"),
+
                 "options":
                     data.get("options"),
+
                 "answer_index":
                     data.get("answer_index"),
+
                 "explanation":
                     data.get("explanation"),
+
                 "reference":
                     data.get("reference"),
+
                 "timestamp":
                     datetime.now(
                         timezone.utc
                     ).isoformat()
             })
 
-        # ----------------------------------------
+        # ============================================
         # KNOWLEDGE
-        # ----------------------------------------
+        # ============================================
 
         elif post_type == "knowledge":
 
@@ -1606,55 +1878,62 @@ def main():
             )
 
             print(
-                f"Generated knowledge: "
+                f"Knowledge: "
                 f"{data['title']}"
             )
 
             post_knowledge(data)
 
             history.append({
-                "type": "knowledge",
+
+                "type":
+                    "knowledge",
+
                 "title":
                     data.get("title"),
+
                 "content":
                     data.get("content"),
+
                 "reference":
                     data.get("reference"),
+
                 "timestamp":
                     datetime.now(
                         timezone.utc
                     ).isoformat()
             })
 
-        # ----------------------------------------
-        # INVALID TYPE
-        # ----------------------------------------
-
         else:
 
             raise ValueError(
                 f"Unknown POST_TYPE: "
                 f"{post_type}. "
-                f"Use quote, quiz or knowledge."
+                "Use quote, quiz or knowledge."
             )
 
+        # Save ONLY after successful Telegram post.
         save_history(history)
 
+        print("=" * 60)
         print(
             f"✅ SUCCESS: {post_type} posted!"
         )
+        print("=" * 60)
 
     except Exception as error:
 
+        print("=" * 60)
         print(
             f"❌ ERROR: {error}"
         )
+        print("=" * 60)
 
         sys.exit(1)
 
 
 # ============================================================
-# ENTRY POINT
+# START
 # ============================================================
 
 if __name__ == "__main__":
