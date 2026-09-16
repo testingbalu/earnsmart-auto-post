@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 9:00 AM IST
-    - cron: "30 3 * * *"
+    # 7:00 AM IST - Bible verse + quiz
+    - cron: "30 1 * * *"
 
-    # 2:00 PM IST
-    - cron: "30 8 * * *"
+    # 1:00 PM IST - Quiz
+    - cron: "30 7 * * *"
 
-    # 8:00 PM IST
+    # 8:00 PM IST - Quiz
     - cron: "30 14 * * *"
 
 permissions:
@@ -44,12 +44,10 @@ jobs:
         run: |
           HOUR=$(TZ=Asia/Kolkata date +%H)
 
-          if [ "$HOUR" -ge 8 ] && [ "$HOUR" -lt 12 ]; then
-            echo "type=verse" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" -ge 12 ] && [ "$HOUR" -lt 17 ]; then
-            echo "type=quiz" >> "$GITHUB_OUTPUT"
+          if [ "$HOUR" -eq 7 ]; then
+            echo "type=verse_quiz" >> "$GITHUB_OUTPUT"
           else
-            echo "type=quote" >> "$GITHUB_OUTPUT"
+            echo "type=quiz" >> "$GITHUB_OUTPUT"
           fi
 
           echo "IST hour: $HOUR"
@@ -61,7 +59,12 @@ jobs:
           BIBLE_CHANNEL_ID: ${{ secrets.BIBLE_CHANNEL_ID }}
           POST_TYPE: ${{ steps.post.outputs.type }}
         run: |
-          python bible_bot.py
+          if [ "$POST_TYPE" = "verse_quiz" ]; then
+            POST_TYPE=quote python bible_bot.py
+            POST_TYPE=quiz python bible_bot.py
+          else
+            python bible_bot.py
+          fi
 
       - name: Save posting history
         run: |
