@@ -3,11 +3,16 @@ import json
 import re
 import sys
 import base64
+import random
+import time
 from datetime import datetime, timezone
 from io import BytesIO
 
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
+
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def require_env(name):
@@ -21,8 +26,14 @@ GEMINI_API_KEY = require_env("GEMINI_API_KEY")
 BOT_TOKEN = require_env("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = require_env("BIBLE_CHANNEL_ID")
 HISTORY_FILE = "posting_history.json"
-GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.7-flash"]
-IMAGE_MODEL = "gemini-3.1-flash-image"
+GEMINI_MODELS = [
+    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+    os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash"),
+]
+IMAGE_MODELS = [
+    os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
+    os.environ.get("GEMINI_IMAGE_FALLBACK_MODEL", "gemini-2.0-flash-preview-image-generation"),
+]
 
 
 def load_history():
@@ -47,7 +58,10 @@ def gemini(prompt):
         "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"},
     }
     last_error = None
+
     for model in GEMINI_MODELS:
+        if not model:
+            continue
         try:
             response = requests.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -56,14 +70,36 @@ def gemini(prompt):
                 timeout=90,
             )
             if response.ok:
-                text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                body = response.json()
+                text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
                 text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
                 return json.loads(text)
+
             last_error = f"{model}: HTTP {response.status_code}: {response.text[:800]}"
-            if response.status_code != 404:
-                break
+            if response.status_code == 404:
+                continue
+            if response.status_code in RETRYABLE_STATUS_CODES:
+                for retry_count in range(3):
+                    delay = min(60, 2 ** retry_count * 5) + random.uniform(0, 2)
+                    print(f"Gemini {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
+                    time.sleep(delay)
+                    retry_response = requests.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                        headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                        json=payload,
+                        timeout=90,
+                    )
+                    if retry_response.ok:
+                        body = retry_response.json()
+                        text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
+                        return json.loads(text)
+                    last_error = f"{model}: HTTP {retry_response.status_code}: {retry_response.text[:800]}"
+                    if retry_response.status_code not in RETRYABLE_STATUS_CODES:
+                        break
         except Exception as error:
-            last_error = str(error)
+            last_error = f"{model}: {error}"
+
     raise RuntimeError(f"Gemini text API failed: {last_error}")
 
 
@@ -142,30 +178,69 @@ VISUAL DIRECTION:
 - Do not generate any text, Telugu letters, English letters, Bible verses, logos,
   signatures, labels, or watermarks inside the image.
 """
-    response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/interactions",
-        headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-        json={
-            "model": IMAGE_MODEL,
-            "input": prompt,
-            "response_format": {"type": "image", "aspect_ratio": "4:5", "image_size": "1K"},
-        },
-        timeout=180,
-    )
-    if not response.ok:
-        raise RuntimeError(f"Gemini image generation failed: HTTP {response.status_code}")
-    body = response.json()
-    candidates = []
-    if body.get("output_image"):
-        candidates.append(body["output_image"])
-    for step in body.get("steps", []):
-        for block in step.get("content", []):
-            if step.get("type") == "model_output" and block.get("type") == "image":
-                candidates.append(block)
-    for item in candidates:
-        if item.get("data"):
-            return Image.open(BytesIO(base64.b64decode(item["data"]))).convert("RGB")
-    raise RuntimeError("Gemini returned no image data.")
+
+    last_error = None
+    for model in IMAGE_MODELS:
+        if not model:
+            continue
+        try:
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                json={
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+                },
+                timeout=180,
+            )
+            if not response.ok:
+                last_error = f"{model}: HTTP {response.status_code}: {response.text[:800]}"
+                if response.status_code == 404:
+                    continue
+                if response.status_code in RETRYABLE_STATUS_CODES:
+                    for retry_count in range(3):
+                        delay = min(60, 2 ** retry_count * 5) + random.uniform(0, 2)
+                        print(f"Gemini image {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
+                        time.sleep(delay)
+                        retry_response = requests.post(
+                            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                            headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                            json={
+                                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                                "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+                            },
+                            timeout=180,
+                        )
+                        if retry_response.ok:
+                            response = retry_response
+                            break
+                        last_error = f"{model}: HTTP {retry_response.status_code}: {retry_response.text[:800]}"
+                        if retry_response.status_code not in RETRYABLE_STATUS_CODES:
+                            break
+                if not response.ok:
+                    continue
+
+            body = response.json()
+            candidates = body.get("candidates", [])
+            for candidate in candidates:
+                for part in candidate.get("content", {}).get("parts", []):
+                    inline_data = part.get("inlineData") or part.get("image")
+                    if inline_data and inline_data.get("data"):
+                        return Image.open(BytesIO(base64.b64decode(inline_data["data"]))).convert("RGB")
+                    if inline_data and inline_data.get("bytes"):
+                        return Image.open(BytesIO(base64.b64decode(inline_data["bytes"]))).convert("RGB")
+            if body.get("output_image") and body["output_image"].get("data"):
+                return Image.open(BytesIO(base64.b64decode(body["output_image"]["data"]))).convert("RGB")
+            for step in body.get("steps", []):
+                for block in step.get("content", []):
+                    if step.get("type") == "model_output" and block.get("type") == "image":
+                        if block.get("data"):
+                            return Image.open(BytesIO(base64.b64decode(block["data"]))).convert("RGB")
+            last_error = f"{model}: Gemini returned no image data."
+        except Exception as error:
+            last_error = f"{model}: {error}"
+
+    raise RuntimeError(f"Gemini image generation failed: {last_error}")
 
 
 def fallback_background():
@@ -223,8 +298,6 @@ def make_quote_image(text, reference, reflection, output="quote_card.png"):
     top = (background.height - new_height) // 2
     image = background.crop((left, top, left + new_width, top + new_height)).resize((1080, 1350), Image.Resampling.LANCZOS)
 
-    # Preserve the bright devotional look from the reference image. Only apply
-    # a very light enhancement; never darken the whole image with a black layer.
     image = ImageEnhance.Color(image).enhance(1.08)
     image = ImageEnhance.Brightness(image).enhance(1.04)
     image = image.filter(ImageFilter.GaussianBlur(0.25)).convert("RGBA")
@@ -236,8 +309,6 @@ def make_quote_image(text, reference, reflection, output="quote_card.png"):
     reference_font = ImageFont.truetype(font_path, 38)
     footer_font = ImageFont.truetype(font_path, 28)
 
-    # A translucent white card keeps the colorful scene visible while matching
-    # the white-edged red lettering style of the supplied example.
     card = Image.new("RGBA", image.size, (0, 0, 0, 0))
     card_draw = ImageDraw.Draw(card)
     card_draw.rounded_rectangle((42, 48, 1038, 650), radius=42, fill=(255, 255, 255, 150), outline=(255, 255, 255, 220), width=4)
@@ -277,25 +348,44 @@ def post_quote(data):
 
 def generate_quiz(history):
     previous = [x.get("question", "") for x in history if x.get("type") == "quiz"][-30:]
-    return gemini(f'''Telugu Christians world కోసం ఒక తెలుగు Bible quiz తయారు చేయండి. పాత ప్రశ్నలను పునరావృతం చేయకండి: {json.dumps(previous, ensure_ascii=False)}
-JSON మాత్రమే: {{"question":"ప్రశ్న","options":["1","2","3","4"],"answer_index":0,"explanation":"వివరణ","reference":"గ్రంథం అధ్యాయం:వచనం"}}''')
+    return gemini(f'''Telugu Christians world కోసం ఒక తెలుగు Bible quiz తయారు చేయండి. పాత ప్రశ్నలను పునరావృతం చేయవద్దు.
+కనీసం 4 options ఉండాలి. JSON మాత్రమే:
+{{"question":"ప్రశ్న","options":["1","2","3","4"],"answer_index":0,"explanation":"వివరణ","reference":"గ్రంథం అధ్యాయం:వచనం"}}
+''')
 
 
 def generate_knowledge(history):
     previous = [x.get("title", "") for x in history if x.get("type") == "knowledge"][-20:]
-    return gemini(f'''Telugu Christians world కోసం ఉపయోగకరమైన తెలుగు Bible knowledge post తయారు చేయండి. పాత topics పునరావృతం చేయకండి: {json.dumps(previous, ensure_ascii=False)}
+    return gemini(f'''Telugu Christians world కోసం ఉపయోగకరమైన తెలుగు Bible knowledge post తయారు చేయండి. పాత topics పునరావృతం చేయవద్దు.
 JSON మాత్రమే: {{"title":"శీర్షిక","content":"కనీసం 3 ముఖ్యమైన points","reference":"సంబంధిత Bible reference"}}''')
 
 
 def post_quiz(data):
-    response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPoll", json={"chat_id": CHANNEL_ID, "question": data["question"], "options": data["options"], "type": "quiz", "correct_option_id": data["answer_index"], "explanation": data["explanation"], "explanation_parse_mode": "HTML", "is_anonymous": True}, timeout=30)
+    response = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPoll",
+        json={
+            "chat_id": CHANNEL_ID,
+            "question": data["question"],
+            "options": data["options"],
+            "type": "quiz",
+            "correct_option_id": data["answer_index"],
+            "explanation": data.get("explanation", ""),
+        },
+    )
     if not response.ok:
         raise RuntimeError(f"Telegram sendPoll failed: HTTP {response.status_code}: {response.text[:500]}")
     return response.json()
 
 
 def post_knowledge(data):
-    response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": CHANNEL_ID, "text": f"<b>💡 నేటి బైబిల్ జ్ఞానం</b>\n\n<b>{data['title']}</b>\n\n{data['content']}\n\n<i>📖 {data['reference']}</i>", "parse_mode": "HTML"}, timeout=30)
+    response = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id": CHANNEL_ID,
+            "text": f"<b>💡 నేటి బైబిల్ జ్ఞానం</b>\n\n<b>{data['title']}</b>\n\n{data['content']}\n\n📍 {data['reference']}",
+            "parse_mode": "HTML",
+        },
+    )
     if not response.ok:
         raise RuntimeError(f"Telegram sendMessage failed: HTTP {response.status_code}: {response.text[:500]}")
     return response.json()
@@ -308,15 +398,35 @@ def main():
         if post_type == "quote":
             data = generate_quote(history)
             post_quote(data)
-            history.append({"type": "quote", "text": data.get("text"), "reference": data.get("reference"), "reflection": data.get("reflection"), "timestamp": datetime.now(timezone.utc).isoformat()})
+            history.append({
+                "type": "quote",
+                "text": data.get("text"),
+                "reference": data.get("reference"),
+                "reflection": data.get("reflection"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
         elif post_type == "quiz":
             data = generate_quiz(history)
             post_quiz(data)
-            history.append({"type": "quiz", "question": data.get("question"), "options": data.get("options"), "answer_index": data.get("answer_index"), "timestamp": datetime.now(timezone.utc).isoformat()})
+            history.append({
+                "type": "quiz",
+                "question": data.get("question"),
+                "options": data.get("options"),
+                "answer_index": data.get("answer_index"),
+                "explanation": data.get("explanation"),
+                "reference": data.get("reference"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
         elif post_type == "knowledge":
             data = generate_knowledge(history)
             post_knowledge(data)
-            history.append({"type": "knowledge", "title": data.get("title"), "content": data.get("content"), "reference": data.get("reference"), "timestamp": datetime.now(timezone.utc).isoformat()})
+            history.append({
+                "type": "knowledge",
+                "title": data.get("title"),
+                "content": data.get("content"),
+                "reference": data.get("reference"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
         else:
             raise ValueError(f"Unknown POST_TYPE: {post_type}")
         save_history(history)
