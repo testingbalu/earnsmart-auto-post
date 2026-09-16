@@ -14,7 +14,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
-
 def require_env(name):
     value = os.environ.get(name)
     if not value:
@@ -26,10 +25,12 @@ GEMINI_API_KEY = require_env("GEMINI_API_KEY")
 BOT_TOKEN = require_env("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = require_env("BIBLE_CHANNEL_ID")
 HISTORY_FILE = "posting_history.json"
+
 GEMINI_MODELS = [
     os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
     os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash"),
 ]
+
 IMAGE_MODELS = [
     os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
     os.environ.get("GEMINI_IMAGE_FALLBACK_MODEL", "gemini-2.0-flash-preview-image-generation"),
@@ -52,53 +53,57 @@ def save_history(history):
         json.dump(history[-100:], file, ensure_ascii=False, indent=2)
 
 
-def gemini(prompt):
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"},
+def call_gemini_json(model, payload):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {
+        "x-goog-api-key": GEMINI_API_KEY,
+        "Content-Type": "application/json",
     }
-    last_error = None
 
-    for model in GEMINI_MODELS:
-        if not model:
-            continue
+    for attempt in range(5):
         try:
-            response = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json=payload,
-                timeout=90,
-            )
+            response = requests.post(url, headers=headers, json=payload, timeout=90)
             if response.ok:
                 body = response.json()
                 text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
                 text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
                 return json.loads(text)
 
-            last_error = f"{model}: HTTP {response.status_code}: {response.text[:800]}"
-            if response.status_code == 404:
-                continue
-            if response.status_code in RETRYABLE_STATUS_CODES:
-                for retry_count in range(3):
-                    delay = min(60, 2 ** retry_count * 5) + random.uniform(0, 2)
-                    print(f"Gemini {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
-                    time.sleep(delay)
-                    retry_response = requests.post(
-                        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                        headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                        json=payload,
-                        timeout=90,
-                    )
-                    if retry_response.ok:
-                        body = retry_response.json()
-                        text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
-                        text = re.sub(r"^```json\s*|\s*```$", "", text, flags=re.IGNORECASE)
-                        return json.loads(text)
-                    last_error = f"{model}: HTTP {retry_response.status_code}: {retry_response.text[:800]}"
-                    if retry_response.status_code not in RETRYABLE_STATUS_CODES:
-                        break
-        except Exception as error:
-            last_error = f"{model}: {error}"
+            if response.status_code not in RETRYABLE_STATUS_CODES:
+                raise RuntimeError(f"{model}: HTTP {response.status_code}: {response.text[:800]}")
+
+            delay = min(60, 2 ** attempt * 5) + random.uniform(0, 2)
+            print(f"Gemini {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
+            time.sleep(delay)
+
+        except Exception as exc:
+            if attempt == 4:
+                raise
+            delay = min(60, 2 ** attempt * 5) + random.uniform(0, 2)
+            print(f"Gemini {model} request error: {exc}; retrying in {delay:.1f}s")
+            time.sleep(delay)
+
+    raise RuntimeError(f"Gemini text API exhausted retries for {model}")
+
+
+def gemini(prompt):
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.8,
+            "responseMimeType": "application/json",
+        },
+    }
+
+    last_error = None
+    for model in GEMINI_MODELS:
+        if not model:
+            continue
+        try:
+            return call_gemini_json(model, payload)
+        except Exception as exc:
+            last_error = str(exc)
+            print(f"Gemini text model {model} failed: {exc}")
 
     raise RuntimeError(f"Gemini text API failed: {last_error}")
 
@@ -122,6 +127,7 @@ def generate_quote(history):
         if item.get("type") in ("quote", "verse") and item.get("text")
     ]
     rejected = used_quotes(history)
+
     for attempt in range(8):
         prompt = f"""
 మీరు Telugu Christians world అనే తెలుగు క్రైస్తవ టెలిగ్రామ్ ఛానల్ కోసం
@@ -148,6 +154,7 @@ JSON మాత్రమే ఇవ్వండి:
         if text:
             previous.append(text)
             rejected.add(key)
+
     raise RuntimeError("Could not generate a unique Bible quote after 8 attempts.")
 
 
@@ -183,62 +190,49 @@ VISUAL DIRECTION:
     for model in IMAGE_MODELS:
         if not model:
             continue
-        try:
-            response = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                    "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
-                },
-                timeout=180,
-            )
-            if not response.ok:
-                last_error = f"{model}: HTTP {response.status_code}: {response.text[:800]}"
-                if response.status_code == 404:
-                    continue
-                if response.status_code in RETRYABLE_STATUS_CODES:
-                    for retry_count in range(3):
-                        delay = min(60, 2 ** retry_count * 5) + random.uniform(0, 2)
-                        print(f"Gemini image {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
-                        time.sleep(delay)
-                        retry_response = requests.post(
-                            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                            headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                            json={
-                                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                                "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
-                            },
-                            timeout=180,
-                        )
-                        if retry_response.ok:
-                            response = retry_response
-                            break
-                        last_error = f"{model}: HTTP {retry_response.status_code}: {retry_response.text[:800]}"
-                        if retry_response.status_code not in RETRYABLE_STATUS_CODES:
-                            break
-                if not response.ok:
-                    continue
 
-            body = response.json()
-            candidates = body.get("candidates", [])
-            for candidate in candidates:
-                for part in candidate.get("content", {}).get("parts", []):
-                    inline_data = part.get("inlineData") or part.get("image")
-                    if inline_data and inline_data.get("data"):
-                        return Image.open(BytesIO(base64.b64decode(inline_data["data"]))).convert("RGB")
-                    if inline_data and inline_data.get("bytes"):
-                        return Image.open(BytesIO(base64.b64decode(inline_data["bytes"]))).convert("RGB")
-            if body.get("output_image") and body["output_image"].get("data"):
-                return Image.open(BytesIO(base64.b64decode(body["output_image"]["data"]))).convert("RGB")
-            for step in body.get("steps", []):
-                for block in step.get("content", []):
-                    if step.get("type") == "model_output" and block.get("type") == "image":
-                        if block.get("data"):
-                            return Image.open(BytesIO(base64.b64decode(block["data"]))).convert("RGB")
-            last_error = f"{model}: Gemini returned no image data."
-        except Exception as error:
-            last_error = f"{model}: {error}"
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+        }
+
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            headers = {
+                "x-goog-api-key": GEMINI_API_KEY,
+                "Content-Type": "application/json",
+            }
+
+            for attempt in range(5):
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=180)
+                    if response.ok:
+                        body = response.json()
+                        for candidate in body.get("candidates", []):
+                            for part in candidate.get("content", {}).get("parts", []):
+                                inline_data = part.get("inlineData") or part.get("image")
+                                if inline_data and inline_data.get("data"):
+                                    return Image.open(BytesIO(base64.b64decode(inline_data["data"]))).convert("RGB")
+                                if inline_data and inline_data.get("bytes"):
+                                    return Image.open(BytesIO(base64.b64decode(inline_data["bytes"]))).convert("RGB")
+                        raise RuntimeError(f"{model}: Gemini returned no image data.")
+                    if response.status_code not in RETRYABLE_STATUS_CODES:
+                        raise RuntimeError(f"{model}: HTTP {response.status_code}: {response.text[:800]}")
+
+                    delay = min(60, 2 ** attempt * 5) + random.uniform(0, 2)
+                    print(f"Gemini image {model} transient failure ({response.status_code}); retrying in {delay:.1f}s")
+                    time.sleep(delay)
+
+                except Exception as exc:
+                    if attempt == 4:
+                        raise
+                    delay = min(60, 2 ** attempt * 5) + random.uniform(0, 2)
+                    print(f"Gemini image {model} request error: {exc}; retrying in {delay:.1f}s")
+                    time.sleep(delay)
+
+        except Exception as exc:
+            last_error = str(exc)
+            print(f"Gemini image model {model} failed: {exc}")
 
     raise RuntimeError(f"Gemini image generation failed: {last_error}")
 
@@ -294,6 +288,7 @@ def make_quote_image(text, reference, reflection, output="quote_card.png"):
     else:
         new_width = background.width
         new_height = int(new_width / target_ratio)
+
     left = (background.width - new_width) // 2
     top = (background.height - new_height) // 2
     image = background.crop((left, top, left + new_width, top + new_height)).resize((1080, 1350), Image.Resampling.LANCZOS)
@@ -317,6 +312,7 @@ def make_quote_image(text, reference, reflection, output="quote_card.png"):
 
     text_fill = (224, 32, 32, 255)
     white_stroke = (255, 255, 255, 255)
+
     draw.text((540, 115), "నేటి బైబిల్ వాక్యం", font=title_font, fill=text_fill, stroke_width=9, stroke_fill=white_stroke, anchor="mm")
 
     lines = wrap_text(draw, text, verse_font, 860)[:6]
@@ -348,16 +344,25 @@ def post_quote(data):
 
 def generate_quiz(history):
     previous = [x.get("question", "") for x in history if x.get("type") == "quiz"][-30:]
-    return gemini(f'''Telugu Christians world కోసం ఒక తెలుగు Bible quiz తయారు చేయండి. పాత ప్రశ్నలను పునరావృతం చేయవద్దు.
-కనీసం 4 options ఉండాలి. JSON మాత్రమే:
+    prompt = f'''
+Telugu Christians world కోసం ఒక తెలుగు Bible quiz తయారు చేయండి.
+పాత ప్రశ్నలను పునరావృతం చేయవద్దు.
+కనీసం 4 options ఉండాలి.
+JSON మాత్రమే:
 {{"question":"ప్రశ్న","options":["1","2","3","4"],"answer_index":0,"explanation":"వివరణ","reference":"గ్రంథం అధ్యాయం:వచనం"}}
-''')
+'''
+    return gemini(prompt)
 
 
 def generate_knowledge(history):
     previous = [x.get("title", "") for x in history if x.get("type") == "knowledge"][-20:]
-    return gemini(f'''Telugu Christians world కోసం ఉపయోగకరమైన తెలుగు Bible knowledge post తయారు చేయండి. పాత topics పునరావృతం చేయవద్దు.
-JSON మాత్రమే: {{"title":"శీర్షిక","content":"కనీసం 3 ముఖ్యమైన points","reference":"సంబంధిత Bible reference"}}''')
+    prompt = f'''
+Telugu Christians world కోసం ఉపయోగకరమైన తెలుగు Bible knowledge post తయారు చేయండి.
+పాత topics పునరావృతం చేయవద్దు.
+JSON మాత్రమే:
+{{"title":"శీర్షిక","content":"కనీసం 3 ముఖ్యమైన points","reference":"సంబంధిత Bible reference"}}
+'''
+    return gemini(prompt)
 
 
 def post_quiz(data):
@@ -371,6 +376,7 @@ def post_quiz(data):
             "correct_option_id": data["answer_index"],
             "explanation": data.get("explanation", ""),
         },
+        timeout=30,
     )
     if not response.ok:
         raise RuntimeError(f"Telegram sendPoll failed: HTTP {response.status_code}: {response.text[:500]}")
@@ -385,6 +391,7 @@ def post_knowledge(data):
             "text": f"<b>💡 నేటి బైబిల్ జ్ఞానం</b>\n\n<b>{data['title']}</b>\n\n{data['content']}\n\n📍 {data['reference']}",
             "parse_mode": "HTML",
         },
+        timeout=30,
     )
     if not response.ok:
         raise RuntimeError(f"Telegram sendMessage failed: HTTP {response.status_code}: {response.text[:500]}")
@@ -394,6 +401,7 @@ def post_knowledge(data):
 def main():
     history = load_history()
     post_type = os.environ.get("POST_TYPE", "quote").lower()
+
     try:
         if post_type == "quote":
             data = generate_quote(history)
@@ -429,6 +437,7 @@ def main():
             })
         else:
             raise ValueError(f"Unknown POST_TYPE: {post_type}")
+
         save_history(history)
         print(f"✅ SUCCESS: {post_type} posted!")
     except Exception as error:
