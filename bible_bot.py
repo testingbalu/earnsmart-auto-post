@@ -27,7 +27,7 @@ CHANNEL_ID = require_env("BIBLE_CHANNEL_ID")
 HISTORY_FILE = "posting_history.json"
 
 GEMINI_MODELS = [
-    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+    os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
     os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash"),
 ]
 
