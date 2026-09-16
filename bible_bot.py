@@ -68,7 +68,6 @@ def gemini(prompt):
 
 
 def normalize_quote(value):
-    """Normalize whitespace/case so equivalent generated verses are rejected."""
     return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
 
 
@@ -87,10 +86,6 @@ def generate_quote(history):
         if item.get("type") in ("quote", "verse") and item.get("text")
     ]
     rejected = used_quotes(history)
-
-    # Validate the model response locally as well as instructing the model.
-    # This prevents a duplicate from ever reaching Telegram when Gemini ignores
-    # the prompt or returns an equivalent verse with different whitespace/case.
     for attempt in range(8):
         prompt = f"""
 మీరు Telugu Christians world అనే తెలుగు క్రైస్తవ టెలిగ్రామ్ ఛానల్ కోసం
@@ -117,22 +112,44 @@ JSON మాత్రమే ఇవ్వండి:
         if text:
             previous.append(text)
             rejected.add(key)
-
     raise RuntimeError("Could not generate a unique Bible quote after 8 attempts.")
 
 
 def generate_ai_background(quote, reference, reflection):
-    prompt = f"""Create a respectful cinematic Christian Bible quote background.
+    prompt = f"""
+Create a beautiful, bright, warm Christian Bible illustration for a Telugu Bible
+verse card. The image must visually tell the story and meaning of this exact
+verse, not use a generic background.
+
 Verse: {quote}
 Reference: {reference}
 Meaning: {reflection}
-Use a realistic biblical scene, square 1:1 composition, cinematic lighting, and
-keep the central/upper-middle area dark and simple for Telugu text. Do not create
-text, letters, logos, verses, or watermarks."""
+
+VISUAL DIRECTION:
+- Choose the scene based on the verse meaning: comfort and protection for fear,
+  peaceful light for hope, Jesus helping someone for strength, prayer for a
+  prayer verse, a path or Jesus walking beside someone for guidance, forgiveness
+  and reconciliation for forgiveness, healing for healing, and joyful family or
+  child-friendly scenes for love and kindness.
+- Use a bright, soft, uplifting devotional illustration like a Christian greeting
+  card: blue sky, warm sunlight, soft clouds, greenery, flowers, and gentle pastel
+  colors where appropriate.
+- Jesus should look compassionate, dignified, natural, and historically inspired.
+- Keep the lower or side subject area visually rich; leave the upper third
+  relatively uncluttered and light so Telugu text can be added later.
+- Use a vertical 4:5 or portrait-friendly composition suitable for a Telegram card.
+- Do not use a black background, dark cinematic mood, heavy vignette, or horror mood.
+- Do not generate any text, Telugu letters, English letters, Bible verses, logos,
+  signatures, labels, or watermarks inside the image.
+"""
     response = requests.post(
         "https://generativelanguage.googleapis.com/v1beta/interactions",
         headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-        json={"model": IMAGE_MODEL, "input": prompt, "response_format": {"type": "image", "aspect_ratio": "1:1", "image_size": "1K"}},
+        json={
+            "model": IMAGE_MODEL,
+            "input": prompt,
+            "response_format": {"type": "image", "aspect_ratio": "4:5", "image_size": "1K"},
+        },
         timeout=180,
     )
     if not response.ok:
@@ -152,13 +169,14 @@ text, letters, logos, verses, or watermarks."""
 
 
 def fallback_background():
-    image = Image.new("RGB", (1080, 1080))
+    image = Image.new("RGB", (1080, 1350), (211, 239, 255))
     draw = ImageDraw.Draw(image)
-    for y in range(1080):
-        t = y / 1080
-        draw.line((0, y, 1080, y), fill=(int(15 + 55 * t), int(25 + 45 * t), int(45 + 35 * t)))
-    draw.polygon([(0, 800), (180, 700), (330, 780), (520, 620), (700, 760), (880, 650), (1080, 780), (1080, 1080), (0, 1080)], fill=(18, 22, 28))
-    draw.ellipse((760, 100, 900, 240), fill=(235, 220, 170))
+    for y in range(1350):
+        t = y / 1350
+        draw.line((0, y, 1080, y), fill=(int(205 + 35 * t), int(235 + 12 * t), int(255 - 15 * t)))
+    draw.ellipse((780, 80, 980, 280), fill=(255, 244, 170))
+    draw.ellipse((30, 850, 1150, 1500), fill=(181, 224, 157))
+    draw.ellipse((120, 1000, 650, 1500), fill=(151, 205, 130))
     return image
 
 
@@ -191,29 +209,53 @@ def make_quote_image(text, reference, reflection, output="quote_card.png"):
     except Exception as error:
         print(f"WARNING: AI image generation failed: {error}; using fallback.")
         background = fallback_background()
+
     background = background.convert("RGB")
-    side = min(background.size)
-    left, top = (background.width - side) // 2, (background.height - side) // 2
-    image = background.crop((left, top, left + side, top + side)).resize((1080, 1080), Image.Resampling.LANCZOS)
-    image = ImageEnhance.Brightness(image).enhance(0.62).filter(ImageFilter.GaussianBlur(1.2)).convert("RGBA")
-    overlay = Image.new("RGBA", image.size)
-    ImageDraw.Draw(overlay).rounded_rectangle((45, 65, 1035, 765), radius=40, fill=(0, 0, 0, 155), outline=(235, 190, 80, 230), width=3)
-    image = Image.alpha_composite(image, overlay)
+    target_ratio = 4 / 5
+    source_ratio = background.width / background.height
+    if source_ratio > target_ratio:
+        new_height = background.height
+        new_width = int(new_height * target_ratio)
+    else:
+        new_width = background.width
+        new_height = int(new_width / target_ratio)
+    left = (background.width - new_width) // 2
+    top = (background.height - new_height) // 2
+    image = background.crop((left, top, left + new_width, top + new_height)).resize((1080, 1350), Image.Resampling.LANCZOS)
+
+    # Preserve the bright devotional look from the reference image. Only apply
+    # a very light enhancement; never darken the whole image with a black layer.
+    image = ImageEnhance.Color(image).enhance(1.08)
+    image = ImageEnhance.Brightness(image).enhance(1.04)
+    image = image.filter(ImageFilter.GaussianBlur(0.25)).convert("RGBA")
+
     draw = ImageDraw.Draw(image)
-    font = find_telugu_font()
-    title, verse, ref, footer = (ImageFont.truetype(font, size) for size in (34, 48, 36, 30))
-    draw.text((540, 125), "నేటి బైబిల్ వాక్యం", font=title, fill=(245, 195, 75), anchor="mm")
-    lines = wrap_text(draw, text, verse, 850)[:7]
-    start = 380 - len(lines) * 72 / 2
+    font_path = find_telugu_font()
+    title_font = ImageFont.truetype(font_path, 42)
+    verse_font = ImageFont.truetype(font_path, 50)
+    reference_font = ImageFont.truetype(font_path, 38)
+    footer_font = ImageFont.truetype(font_path, 28)
+
+    # A translucent white card keeps the colorful scene visible while matching
+    # the white-edged red lettering style of the supplied example.
+    card = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    card_draw = ImageDraw.Draw(card)
+    card_draw.rounded_rectangle((42, 48, 1038, 650), radius=42, fill=(255, 255, 255, 150), outline=(255, 255, 255, 220), width=4)
+    image = Image.alpha_composite(image, card)
+    draw = ImageDraw.Draw(image)
+
+    text_fill = (224, 32, 32, 255)
+    white_stroke = (255, 255, 255, 255)
+    draw.text((540, 115), "నేటి బైబిల్ వాక్యం", font=title_font, fill=text_fill, stroke_width=9, stroke_fill=white_stroke, anchor="mm")
+
+    lines = wrap_text(draw, text, verse_font, 860)[:6]
+    line_height = 78
+    start_y = 330 - (len(lines) - 1) * line_height / 2
     for index, line in enumerate(lines):
-        y = start + index * 72
-        draw.text((542, y + 2), line, font=verse, fill=(0, 0, 0), anchor="mm")
-        draw.text((540, y), line, font=verse, fill="white", anchor="mm")
-    draw.text((540, 670), reference, font=ref, fill=(245, 195, 75), anchor="mm")
-    bottom = Image.new("RGBA", image.size)
-    ImageDraw.Draw(bottom).rectangle((0, 900, 1080, 1080), fill=(0, 0, 0, 120))
-    image = Image.alpha_composite(image, bottom)
-    ImageDraw.Draw(image).text((540, 990), "Telugu Christians world", font=footer, fill="white", anchor="mm")
+        draw.text((540, start_y + index * line_height), line, font=verse_font, fill=text_fill, stroke_width=8, stroke_fill=white_stroke, anchor="mm")
+
+    draw.text((540, 585), reference, font=reference_font, fill=text_fill, stroke_width=8, stroke_fill=white_stroke, anchor="mm")
+    draw.text((540, 1290), "Telugu Christians world", font=footer_font, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(105, 75, 45, 180), anchor="mm")
     image.convert("RGB").save(output, "PNG", optimize=True)
     return output
 
