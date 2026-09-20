@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -652,18 +653,13 @@ def fallback_background():
 
 def find_telugu_font():
     candidates = [
-        (
-            "/usr/share/fonts/truetype/noto/"
-            "NotoSansTelugu-Regular.ttf"
-        ),
-        (
-            "/usr/share/fonts/opentype/noto/"
-            "NotoSansTelugu-Regular.ttf"
-        ),
-        (
-            "/usr/share/fonts/truetype/lohit-telugu/"
-            "Lohit-Telugu.ttf"
-        ),
+        "/usr/share/fonts/truetype/noto/NotoSansTelugu-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansTeluguUI-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSerifTelugu-Regular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansTelugu-Regular.ttf",
+        "/usr/share/fonts/truetype/lohit-telugu/Lohit-Telugu.ttf",
+        "/usr/share/fonts/truetype/telugufonts/Telugu-Regular.ttf",
+        "/usr/share/fonts/truetype/telugu/Telugu-Regular.ttf",
     ]
 
     for path in candidates:
@@ -676,12 +672,43 @@ def find_telugu_font():
 
             if (
                 "telugu" in lower
-                and lower.endswith((".ttf", ".otf"))
+                and lower.endswith((".ttf", ".otf", ".ttc"))
             ):
                 return os.path.join(root, name)
 
+    for root, _, files in os.walk("/usr/local/share/fonts"):
+        for name in files:
+            lower = name.lower()
+
+            if (
+                "telugu" in lower
+                and lower.endswith((".ttf", ".otf", ".ttc"))
+            ):
+                return os.path.join(root, name)
+
+    try:
+        result = subprocess.run(
+            ["fc-match", "-f", "%{file}\n", "Noto Sans Telugu"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            path = result.stdout.strip().splitlines()[0].strip()
+            if path and os.path.exists(path):
+                return path
+    except Exception:
+        pass
+
+    for fallback in [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    ]:
+        if os.path.exists(fallback):
+            return fallback
+
     raise FileNotFoundError(
-        "Telugu font not found. Install fonts-noto-core."
+        "Telugu font not found. Install fonts-noto-core or fonts-noto-extra."
     )
 
 
@@ -894,12 +921,6 @@ def telegram_response_check(response, method):
 
 
 def post_quote(data):
-    image_path = make_quote_image(
-        data["text"],
-        data["reference"],
-        data["reflection"],
-    )
-
     quote = html.escape(data["text"])
     reference = html.escape(data["reference"])
     reflection = html.escape(data["reflection"])
@@ -914,19 +935,39 @@ def post_quote(data):
     # Telegram sendPhoto captions cannot exceed 1024 characters.
     caption = caption[:1024]
 
-    with open(image_path, "rb") as image_file:
+    try:
+        image_path = make_quote_image(
+            data["text"],
+            data["reference"],
+            data["reflection"],
+        )
+
+        with open(image_path, "rb") as image_file:
+            response = requests.post(
+                telegram_url("sendPhoto"),
+                files={"photo": image_file},
+                data={
+                    "chat_id": CHANNEL_ID,
+                    "caption": caption,
+                    "parse_mode": "HTML",
+                },
+                timeout=60,
+            )
+
+        return telegram_response_check(response, "sendPhoto")
+
+    except Exception as error:
+        print(f"WARNING: Verse image posting failed; sending text fallback: {error}")
         response = requests.post(
-            telegram_url("sendPhoto"),
-            files={"photo": image_file},
-            data={
+            telegram_url("sendMessage"),
+            json={
                 "chat_id": CHANNEL_ID,
-                "caption": caption,
+                "text": caption,
                 "parse_mode": "HTML",
             },
             timeout=60,
         )
-
-    return telegram_response_check(response, "sendPhoto")
+        return telegram_response_check(response, "sendMessage")
 
 
 # ============================================================
@@ -1022,6 +1063,9 @@ JSON:
         if any(not option for option in options):
             continue
 
+        if len({normalize_text(option) for option in options}) != 4:
+            continue
+
         if answer_index not in range(4):
             continue
 
@@ -1030,6 +1074,13 @@ JSON:
         if key in used_keys:
             print(
                 f"Rejected duplicate quiz "
+                f"attempt {attempt + 1}/8"
+            )
+            continue
+
+        if not reference:
+            print(
+                f"Rejected invalid quiz reference "
                 f"attempt {attempt + 1}/8"
             )
             continue
@@ -1078,7 +1129,7 @@ def generate_knowledge(history):
     previous = [
         str(item.get("title", "")).strip()
         for item in used
-        if item.get("title")
+        if isinstance(item, dict) and item.get("title")
     ]
 
     prompt = f"""
